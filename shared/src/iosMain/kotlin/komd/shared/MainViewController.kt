@@ -1,4 +1,4 @@
-package kmd.shared
+package komd.shared
 
 import androidx.compose.ui.window.ComposeUIViewController
 

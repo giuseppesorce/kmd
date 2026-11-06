@@ -13,11 +13,14 @@ dependencies {
 
 compose.desktop {
     application {
-        mainClass = "kmd.MainKt"
+        mainClass = "komd.MainKt"
         nativeDistributions {
             targetFormats(org.jetbrains.compose.desktop.application.dsl.TargetFormat.Dmg)
-            packageName = "KMD"
+            packageName = "KoMD"
             packageVersion = "1.0.0"
+            macOS {
+                iconFile.set(project.file("src/main/resources/KoMD.icns"))
+            }
         }
     }
 }

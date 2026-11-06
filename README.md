@@ -1,6 +1,6 @@
-# KMD
+# KoMD
 
-KMD is a Markdown editor built with Kotlin Multiplatform and Compose Multiplatform.
+KoMD is a Markdown editor built with Kotlin Multiplatform and Compose Multiplatform.
 
 ## Targets
 
@@ -14,3 +14,5 @@ KMD is a Markdown editor built with Kotlin Multiplatform and Compose Multiplatfo
 Open the project root in Android Studio and let Gradle sync. Choose the `androidApp` or `desktopApp` run configuration to launch those apps. Open `iosApp/iosApp.xcodeproj` in Xcode to run the iOS app.
 
 The iOS target requires macOS and Xcode. The Android target requires an installed Android SDK.
+
+The shared editor can open Markdown files and save them through native file dialogs on Android, iOS, and desktop.

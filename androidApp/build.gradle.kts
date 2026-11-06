@@ -6,11 +6,11 @@ plugins {
 }
 
 android {
-    namespace = "kmd.android"
+    namespace = "komd.android"
     compileSdk = libs.versions.androidCompileSdk.get().toInt()
 
     defaultConfig {
-        applicationId = "kmd.android"
+        applicationId = "komd.android"
         minSdk = libs.versions.androidMinSdk.get().toInt()
         targetSdk = libs.versions.androidTargetSdk.get().toInt()
         versionCode = 1

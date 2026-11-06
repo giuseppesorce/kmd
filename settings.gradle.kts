@@ -11,5 +11,5 @@ dependencyResolutionManagement {
     repositories { google(); mavenCentral() }
 }
 
-rootProject.name = "KMD"
+rootProject.name = "KoMD"
 include(":shared", ":androidApp", ":desktopApp")

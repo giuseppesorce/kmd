@@ -1,11 +1,11 @@
-package kmd
+package komd
 
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
-import kmd.shared.App
+import komd.shared.App
 
 fun main() = application {
-    Window(onCloseRequest = ::exitApplication, title = "KMD") {
+    Window(onCloseRequest = ::exitApplication, title = "KoMD") {
         App()
     }
 }

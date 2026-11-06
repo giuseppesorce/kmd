@@ -9,7 +9,7 @@ plugins {
 
 kotlin {
     android {
-        namespace = "kmd.shared"
+        namespace = "komd.shared"
         compileSdk = libs.versions.androidCompileSdk.get().toInt()
         minSdk = libs.versions.androidMinSdk.get().toInt()
         compilerOptions { jvmTarget = JvmTarget.JVM_17 }
@@ -31,7 +31,14 @@ kotlin {
             implementation(libs.compose.foundation)
             implementation(libs.compose.material3)
             implementation(libs.compose.ui)
+            implementation(libs.filekit.dialogs.compose)
+            implementation(libs.coil.compose)
+            implementation(libs.coil.network.ktor3)
         }
+        getByName("androidMain").dependencies { implementation(libs.ktor.client.android) }
+        getByName("iosArm64Main").dependencies { implementation(libs.ktor.client.darwin) }
+        getByName("iosSimulatorArm64Main").dependencies { implementation(libs.ktor.client.darwin) }
         getByName("desktopMain").dependencies { implementation(compose.desktop.currentOs) }
+        getByName("desktopMain").dependencies { implementation(libs.ktor.client.java) }
     }
 }
