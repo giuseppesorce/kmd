@@ -25,18 +25,14 @@ import androidx.compose.ui.input.pointer.isMetaPressed
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextDecoration
-import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.platform.LocalDensity
 import kotlin.math.roundToInt
-import coil3.compose.AsyncImage
 import io.github.vinceglb.filekit.dialogs.FileKitType
 import io.github.vinceglb.filekit.dialogs.FileKitDialogSettings
 import io.github.vinceglb.filekit.dialogs.compose.rememberFilePickerLauncher
@@ -47,7 +43,7 @@ import io.github.vinceglb.filekit.path
 import io.github.vinceglb.filekit.writeString
 import kotlinx.coroutines.launch
 
-private data class KomdPalette(
+internal data class KomdPalette(
     val background: Color,
     val sidebar: Color,
     val toolbar: Color,
@@ -83,7 +79,7 @@ private fun lightAccentOptions(strings: AppStrings) = listOf(
     AccentOption(strings.colorHoney, Color(0xFFC48A3A)),
     AccentOption(strings.colorSage, Color(0xFF7D9270)),
 )
-private val LocalKomdPalette = staticCompositionLocalOf { darkPalette }
+internal val LocalKomdPalette = staticCompositionLocalOf { darkPalette }
 
 private data class Document(val name: String, val content: String)
 
@@ -91,7 +87,7 @@ private enum class UiLanguage(val nativeName: String) {
     Italian("Italiano"), English("English"), French("Français"), Spanish("Español"), German("Deutsch")
 }
 private enum class SettingsSection { Languages, Colors }
-private enum class ImageAlignment { Left, Center, Right }
+internal enum class ImageAlignment { Left, Center, Right }
 private enum class WorkspaceMode { Split, Editor, Preview }
 
 private data class AppStrings(
@@ -353,7 +349,7 @@ private fun stringsFor(language: UiLanguage): AppStrings = when (language) {
 
 private val LocalUiStrings = staticCompositionLocalOf { italianStrings }
 
-private data class PreviewImage(val alt: String, val source: String, val alignment: ImageAlignment)
+internal data class PreviewImage(val alt: String, val source: String, val alignment: ImageAlignment)
 
 private fun welcomeText(strings: AppStrings): String = """# ${strings.welcomeTitle}
 
@@ -1177,7 +1173,7 @@ private fun alignedImageHtml(alt: String, source: String, alignment: ImageAlignm
     return "<img src=\"${escapeHtmlAttribute(imageSource)}\" alt=\"${escapeHtmlAttribute(alt)}\" style=\"display:block;max-width:100%;$margins\" />"
 }
 
-private fun fileUri(path: String): String {
+internal fun fileUri(path: String): String {
     val safe = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/-._~!$&'()*+,;=:@"
     val hex = "0123456789ABCDEF"
     val encodedPath = buildString {
@@ -1216,9 +1212,7 @@ private fun PreviewPane(
     modifier: Modifier = Modifier
 ) {
     val colors = LocalKomdPalette.current
-    val uriHandler = LocalUriHandler.current
     val density = LocalDensity.current
-    var inCode = false
     Column(modifier.background(colors.background)) {
         Row(
             Modifier.fillMaxWidth().height(40.dp).background(colors.toolbar).padding(horizontal = 18.dp),
@@ -1236,76 +1230,15 @@ private fun PreviewPane(
         }
         DividerLine(colors)
         CompositionLocalProvider(LocalDensity provides Density(density.density, density.fontScale * zoom)) {
-            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 21.dp, vertical = 20.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(ui.document, Modifier.clip(RoundedCornerShape(5.dp)).background(colors.selectedDocument).padding(horizontal = 8.dp, vertical = 5.dp), color = colors.accent, fontSize = 9.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 0.4.sp)
-                    Spacer(Modifier.width(8.dp))
-                    Text(ui.updatedNow, color = colors.secondary, fontSize = 9.sp)
-                }
-                Spacer(Modifier.height(20.dp))
-                markdown.lines().forEachIndexed { index, line ->
-                val image = parsePreviewImage(line)
-                val link = parsePreviewLink(line)
-                when {
-                    line.trimStart().startsWith("```") -> inCode = !inCode
-                    inCode -> Text(
-                        line.ifEmpty { " " },
-                        Modifier.fillMaxWidth().clip(RoundedCornerShape(7.dp)).background(colors.toolbar).padding(horizontal = 12.dp, vertical = 5.dp),
-                        color = colors.editorText,
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = 12.sp,
-                        lineHeight = 20.sp
-                    )
-                    image != null -> {
-                        val model = when {
-                            image.source.startsWith("/") -> fileUri(image.source)
-                            image.source.startsWith("file://") || image.source.startsWith("https://") || image.source.startsWith("http://") -> image.source
-                            else -> null
-                        }
-                        if (model != null) {
-                            val alignment = when (image.alignment) {
-                                ImageAlignment.Left -> Alignment.CenterStart
-                                ImageAlignment.Center -> Alignment.Center
-                                ImageAlignment.Right -> Alignment.CenterEnd
-                            }
-                            Box(Modifier.fillMaxWidth().padding(vertical = 8.dp), contentAlignment = alignment) {
-                                AsyncImage(
-                                    model = model,
-                                    contentDescription = image.alt,
-                                    contentScale = ContentScale.Fit,
-                                    modifier = Modifier.widthIn(max = 640.dp).heightIn(max = 360.dp)
-                                )
-                            }
-                        } else Text(ui.imageUnsupported.replace("{source}", image.source), color = colors.secondary, fontSize = 12.sp)
+            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+                Column(Modifier.widthIn(max = 780.dp).fillMaxWidth().padding(horizontal = 32.dp, vertical = 28.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(ui.document, Modifier.clip(RoundedCornerShape(5.dp)).background(colors.selectedDocument).padding(horizontal = 8.dp, vertical = 5.dp), color = colors.accent, fontSize = 9.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 0.4.sp)
+                        Spacer(Modifier.width(8.dp))
+                        Text(ui.updatedNow, color = colors.secondary, fontSize = 9.sp)
                     }
-                    link != null -> Text(
-                        link.first,
-                        Modifier.clickable { runCatching { uriHandler.openUri(link.second) } }.padding(vertical = 3.dp),
-                        color = colors.accent,
-                        fontSize = 14.sp,
-                        textDecoration = TextDecoration.Underline
-                    )
-                    line.startsWith("### ") -> Text(line.removePrefix("### "), Modifier.padding(top = 12.dp, bottom = 4.dp), color = colors.foreground, fontSize = 16.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Serif)
-                    line.startsWith("## ") -> Text(line.removePrefix("## "), Modifier.padding(top = 17.dp, bottom = 7.dp), color = colors.foreground, fontSize = 21.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Serif)
-                    line.startsWith("# ") -> Text(line.removePrefix("# "), Modifier.padding(bottom = 8.dp), color = colors.foreground, fontSize = 29.sp, fontWeight = FontWeight.Bold, lineHeight = 36.sp, fontFamily = FontFamily.Serif)
-                    line.startsWith("> ") -> Row(
-                        Modifier.fillMaxWidth().padding(vertical = 7.dp).clip(RoundedCornerShape(8.dp)).background(colors.toolbar).padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(Modifier.width(3.dp).height(31.dp).clip(RoundedCornerShape(4.dp)).background(colors.accent))
-                        Text("“  ${line.removePrefix("> ")}  ”", Modifier.padding(start = 11.dp), color = colors.foreground, fontSize = 13.sp, fontWeight = FontWeight.Medium, fontFamily = FontFamily.Serif)
-                    }
-                    line.startsWith("- ") || line.startsWith("* ") -> Row(
-                        Modifier.fillMaxWidth().padding(vertical = 2.dp).clip(RoundedCornerShape(7.dp)).background(colors.toolbar).padding(horizontal = 11.dp, vertical = 9.dp),
-                        verticalAlignment = Alignment.Top
-                    ) {
-                        Text("•", color = colors.accent, fontSize = 14.sp)
-                        Text("  ${line.drop(2)}", color = colors.foreground, fontSize = 12.sp, lineHeight = 18.sp)
-                    }
-                    line.startsWith("|") -> Text(line, Modifier.padding(vertical = 1.dp), color = colors.accent, fontFamily = FontFamily.Monospace, fontSize = 12.sp)
-                    line.isBlank() -> Spacer(Modifier.height(if (index == 0) 4.dp else 8.dp))
-                    else -> Text(line, Modifier.fillMaxWidth(), color = colors.foreground, fontSize = 13.sp, lineHeight = 21.sp, fontFamily = FontFamily.Serif)
-                }
+                    Spacer(Modifier.height(22.dp))
+                    MarkdownDocument(markdown, ui.imageUnsupported)
                 }
             }
         }
@@ -1313,11 +1246,10 @@ private fun PreviewPane(
 }
 
 private val markdownImagePattern = Regex("""^!\[(.*?)\]\((?:<([^>]+)>|([^\s)]+))\)$""")
-private val markdownLinkPattern = Regex("""^\[(.*?)\]\((?:<([^>]+)>|([^\s)]+))\)$""")
 private val htmlImagePattern = Regex("""<img\b([^>]*)/?>""", RegexOption.IGNORE_CASE)
 private val htmlAttributePattern = Regex("""([\w:-]+)\s*=\s*["']([^"']*)["']""")
 
-private fun parsePreviewImage(line: String): PreviewImage? {
+internal fun parsePreviewImage(line: String): PreviewImage? {
     val trimmed = line.trim()
     val htmlMatch = htmlImagePattern.matchEntire(trimmed)
     if (htmlMatch != null) {
@@ -1336,16 +1268,6 @@ private fun parsePreviewImage(line: String): PreviewImage? {
     val markdownMatch = markdownImagePattern.matchEntire(trimmed) ?: return null
     val source = markdownMatch.groups[2]?.value ?: markdownMatch.groups[3]?.value ?: return null
     return PreviewImage(markdownMatch.groups[1]?.value.orEmpty(), source, ImageAlignment.Left)
-}
-
-private fun parsePreviewLink(line: String): Pair<String, String>? {
-    val match = markdownLinkPattern.matchEntire(line.trim()) ?: return null
-    val target = match.groups[2]?.value ?: match.groups[3]?.value ?: return null
-    val label = match.groups[1]?.value.orEmpty()
-        .replace("\\[", "[")
-        .replace("\\]", "]")
-        .replace("\\\\", "\\")
-    return label to unescapeHtmlAttribute(target)
 }
 
 private fun unescapeHtmlAttribute(value: String): String = value
