@@ -18,6 +18,16 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.isAltPressed
+import androidx.compose.ui.input.key.isCtrlPressed
+import androidx.compose.ui.input.key.isMetaPressed
+import androidx.compose.ui.input.key.isShiftPressed
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.PointerEventPass
@@ -33,6 +43,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.platform.LocalDensity
 import kotlin.math.roundToInt
+import io.github.vinceglb.filekit.PlatformFile
 import io.github.vinceglb.filekit.dialogs.FileKitType
 import io.github.vinceglb.filekit.dialogs.FileKitDialogSettings
 import io.github.vinceglb.filekit.dialogs.compose.rememberFilePickerLauncher
@@ -68,6 +79,19 @@ private val lightPalette = KomdPalette(
     accent = Color(0xFFE06D44), editorText = Color(0xFF453A34), selectedDocument = Color(0xFFF5E2D5),
     button = Color(0xFFF3E9DE)
 )
+
+private fun paperPalette(accent: Color) = KomdPalette(
+    background = Color.White,
+    sidebar = Color.White,
+    toolbar = Color.White,
+    divider = Color(0xFFE6E6E6),
+    foreground = Color(0xFF1C1C1C),
+    secondary = Color(0xFF6B7280),
+    accent = accent,
+    editorText = Color(0xFF1C1C1C),
+    selectedDocument = Color(0xFFF4F4F5),
+    button = Color(0xFFF4F4F5)
+)
 private data class AccentOption(val name: String, val color: Color)
 
 private fun lightAccentOptions(strings: AppStrings) = listOf(
@@ -81,16 +105,16 @@ private fun lightAccentOptions(strings: AppStrings) = listOf(
 )
 internal val LocalKomdPalette = staticCompositionLocalOf { darkPalette }
 
-private data class Document(val name: String, val content: String)
+private data class Document(val name: String, val content: String, val file: PlatformFile? = null)
 
 private enum class UiLanguage(val nativeName: String) {
     Italian("Italiano"), English("English"), French("Français"), Spanish("Español"), German("Deutsch")
 }
-private enum class SettingsSection { Languages, Colors }
+private enum class SettingsSection { Languages, Colors, Text }
 internal enum class ImageAlignment { Left, Center, Right }
 private enum class WorkspaceMode { Split, Editor, Preview }
 
-private data class AppStrings(
+internal data class AppStrings(
     val tagline: String,
     val newDocument: String,
     val openFile: String,
@@ -140,6 +164,11 @@ private data class AppStrings(
     val settingsTitle: String,
     val languages: String,
     val colors: String,
+    val text: String,
+    val textSize: String,
+    val textSizeHint: String,
+    val copyCode: String,
+    val copied: String,
     val languageLabel: String,
     val theme: String,
     val dark: String,
@@ -206,6 +235,8 @@ private val italianStrings = AppStrings(
     imageFromUrl = "Immagine da URL", description = "Descrizione", imageUrl = "URL immagine", insert = "Inserisci", cancel = "Annulla",
     linkTextOptional = "Testo del link (facoltativo)", documentationExample = "es. Documentazione", webAddress = "Indirizzo web",
     localFile = "File locale", insertUrl = "Inserisci URL", exampleText = "testo", settingsTitle = "Impostazioni", languages = "Lingue", colors = "Colori",
+    text = "Testo", textSize = "Dimensione del testo", textSizeHint = "Ingrandisce menu, barre e pulsanti. Editor e anteprima restano regolabili con il loro zoom.",
+    copyCode = "Copia", copied = "Copiato",
     languageLabel = "Lingua dell’interfaccia", theme = "Tema", dark = "Scuro", light = "Chiaro", accentColor = "Colore di accento",
     accentDescription = "Personalizza link, cursore ed elementi evidenziati.", darkFixed = "Il tema scuro mantiene i colori del design Stitch.",
     done = "Fine", imageAlignment = "Allineamento", left = "Sinistra", center = "Centro", right = "Destra",
@@ -235,6 +266,8 @@ private val englishStrings = AppStrings(
     imageFromUrl = "Image from URL", description = "Description", imageUrl = "Image URL", insert = "Insert", cancel = "Cancel",
     linkTextOptional = "Link text (optional)", documentationExample = "e.g. Documentation", webAddress = "Web address",
     localFile = "Local file", insertUrl = "Insert URL", exampleText = "text", settingsTitle = "Settings", languages = "Languages", colors = "Colors",
+    text = "Text", textSize = "Interface text size", textSizeHint = "Enlarges menus, bars, and buttons. The editor and preview keep their own zoom.",
+    copyCode = "Copy", copied = "Copied",
     languageLabel = "Interface language", theme = "Theme", dark = "Dark", light = "Light", accentColor = "Accent color",
     accentDescription = "Customize links, the cursor, and highlighted elements.", darkFixed = "The dark theme keeps the Stitch design colors.",
     done = "Done", imageAlignment = "Alignment", left = "Left", center = "Center", right = "Right",
@@ -264,6 +297,8 @@ private val frenchStrings = AppStrings(
     imageFromUrl = "Image depuis une URL", description = "Description", imageUrl = "URL de l’image", insert = "Insérer", cancel = "Annuler",
     linkTextOptional = "Texte du lien (facultatif)", documentationExample = "ex. Documentation", webAddress = "Adresse Web",
     localFile = "Fichier local", insertUrl = "Insérer l’URL", exampleText = "texte", settingsTitle = "Paramètres", languages = "Langues", colors = "Couleurs",
+    text = "Texte", textSize = "Taille du texte", textSizeHint = "Agrandit les menus, les barres et les boutons. L’éditeur et l’aperçu gardent leur zoom.",
+    copyCode = "Copier", copied = "Copié",
     languageLabel = "Langue de l’interface", theme = "Thème", dark = "Sombre", light = "Clair", accentColor = "Couleur d’accentuation",
     accentDescription = "Personnalisez les liens, le curseur et les éléments mis en évidence.", darkFixed = "Le thème sombre conserve les couleurs du design Stitch.",
     done = "Terminé", imageAlignment = "Alignement", left = "Gauche", center = "Centre", right = "Droite",
@@ -293,6 +328,8 @@ private val spanishStrings = AppStrings(
     imageFromUrl = "Imagen desde URL", description = "Descripción", imageUrl = "URL de la imagen", insert = "Insertar", cancel = "Cancelar",
     linkTextOptional = "Texto del enlace (opcional)", documentationExample = "p. ej., Documentación", webAddress = "Dirección web",
     localFile = "Archivo local", insertUrl = "Insertar URL", exampleText = "texto", settingsTitle = "Ajustes", languages = "Idiomas", colors = "Colores",
+    text = "Texto", textSize = "Tamaño del texto", textSizeHint = "Amplía menús, barras y botones. El editor y la vista previa conservan su zoom.",
+    copyCode = "Copiar", copied = "Copiado",
     languageLabel = "Idioma de la interfaz", theme = "Tema", dark = "Oscuro", light = "Claro", accentColor = "Color de acento",
     accentDescription = "Personaliza enlaces, el cursor y los elementos resaltados.", darkFixed = "El tema oscuro conserva los colores del diseño Stitch.",
     done = "Listo", imageAlignment = "Alineación", left = "Izquierda", center = "Centro", right = "Derecha",
@@ -322,6 +359,8 @@ private val germanStrings = AppStrings(
     imageFromUrl = "Bild über URL", description = "Beschreibung", imageUrl = "Bild-URL", insert = "Einfügen", cancel = "Abbrechen",
     linkTextOptional = "Linktext (optional)", documentationExample = "z. B. Dokumentation", webAddress = "Webadresse",
     localFile = "Lokale Datei", insertUrl = "URL einfügen", exampleText = "Text", settingsTitle = "Einstellungen", languages = "Sprachen", colors = "Farben",
+    text = "Text", textSize = "Textgröße", textSizeHint = "Vergrößert Menüs, Leisten und Schaltflächen. Editor und Vorschau behalten ihren Zoom.",
+    copyCode = "Kopieren", copied = "Kopiert",
     languageLabel = "Anzeigesprache", theme = "Design", dark = "Dunkel", light = "Hell", accentColor = "Akzentfarbe",
     accentDescription = "Passe Links, Cursor und hervorgehobene Elemente an.", darkFixed = "Das dunkle Design behält die Farben des Stitch-Entwurfs bei.",
     done = "Fertig", imageAlignment = "Ausrichtung", left = "Links", center = "Mitte", right = "Rechts",
@@ -347,7 +386,8 @@ private fun stringsFor(language: UiLanguage): AppStrings = when (language) {
     UiLanguage.German -> germanStrings
 }
 
-private val LocalUiStrings = staticCompositionLocalOf { italianStrings }
+internal val LocalUiStrings = staticCompositionLocalOf { italianStrings }
+private val LocalInterfaceScale = staticCompositionLocalOf { 1f }
 
 internal data class PreviewImage(val alt: String, val source: String, val alignment: ImageAlignment)
 
@@ -390,18 +430,27 @@ private fun workspaceModeLabel(mode: WorkspaceMode, strings: AppStrings): String
 
 @Composable
 fun App() {
-    var darkTheme by remember { mutableStateOf(true) }
+    var darkTheme by remember { mutableStateOf(false) }
     var language by remember { mutableStateOf(UiLanguage.Italian) }
     var lightAccent by remember { mutableStateOf(lightPalette.accent) }
+    var interfaceScale by remember { mutableFloatStateOf(1f) }
     val palette = if (darkTheme) darkPalette else lightPalette.copy(accent = lightAccent)
-    CompositionLocalProvider(LocalKomdPalette provides palette, LocalUiStrings provides stringsFor(language)) {
+    val density = LocalDensity.current
+    CompositionLocalProvider(
+        LocalKomdPalette provides palette,
+        LocalUiStrings provides stringsFor(language),
+        LocalInterfaceScale provides interfaceScale,
+        LocalDensity provides Density(density.density, density.fontScale * interfaceScale)
+    ) {
         AppContent(
             darkTheme = darkTheme,
             onToggleTheme = { darkTheme = !darkTheme },
             lightAccent = lightAccent,
             onLightAccentChange = { lightAccent = it },
             language = language,
-            onLanguageChange = { language = it }
+            onLanguageChange = { language = it },
+            interfaceScale = interfaceScale,
+            onInterfaceScaleChange = { interfaceScale = it }
         )
     }
 }
@@ -413,7 +462,9 @@ private fun AppContent(
     lightAccent: Color,
     onLightAccentChange: (Color) -> Unit,
     language: UiLanguage,
-    onLanguageChange: (UiLanguage) -> Unit
+    onLanguageChange: (UiLanguage) -> Unit,
+    interfaceScale: Float,
+    onInterfaceScaleChange: (Float) -> Unit
 ) {
     val colors = LocalKomdPalette.current
     val ui = LocalUiStrings.current
@@ -471,7 +522,7 @@ private fun AppContent(
                     .onSuccess { loaded ->
                         documents = documents.toMutableList().also { list ->
                             if (selectedIndex in list.indices) list[selectedIndex] = list[selectedIndex].copy(content = content)
-                            list += Document(file.name, loaded)
+                            list += Document(file.name, loaded, file)
                         }
                         selectedIndex = documents.lastIndex
                         content = loaded
@@ -489,7 +540,7 @@ private fun AppContent(
                 runCatching { file.writeString(latestContent) }
                     .onSuccess {
                         documents = documents.toMutableList().also { list ->
-                            if (selectedIndex in list.indices) list[selectedIndex] = list[selectedIndex].copy(name = file.name, content = latestContent)
+                            if (selectedIndex in list.indices) list[selectedIndex] = list[selectedIndex].copy(name = file.name, content = latestContent, file = file)
                         }
                         fileMessage = ui.saved.replace("{name}", file.name)
                     }
@@ -530,7 +581,52 @@ private fun AppContent(
         }
     )
 
-    BoxWithConstraints(Modifier.fillMaxSize().background(colors.background)) {
+    val openFile = {
+        fileMessage = null
+        picker.launch()
+    }
+    val saveFile: (Boolean) -> Unit = { overwrite ->
+        val index = selectedIndex
+        val existing = documents.getOrNull(index)?.file
+        if (overwrite && existing != null) {
+            fileMessage = null
+            scope.launch {
+                runCatching { existing.writeString(latestContent) }
+                    .onSuccess {
+                        documents = documents.toMutableList().also { list ->
+                            if (index in list.indices) list[index] = list[index].copy(content = latestContent)
+                        }
+                        fileMessage = ui.saved.replace("{name}", existing.name)
+                    }
+                    .onFailure { fileMessage = ui.saveFailure.replace("{error}", it.message ?: ui.unknownError) }
+            }
+        } else {
+            fileMessage = null
+            saver.launch(
+                suggestedName = documents.getOrNull(index)?.name?.substringBeforeLast('.') ?: ui.untitledTitle,
+                defaultExtension = "md",
+                allowedExtensions = setOf("md", "markdown")
+            )
+        }
+    }
+    BoxWithConstraints(
+        Modifier.fillMaxSize().background(colors.background).onPreviewKeyEvent { event ->
+            if (event.type != KeyEventType.KeyUp) return@onPreviewKeyEvent false
+            val shortcut = if (shortcutUsesCommand) event.isMetaPressed else event.isCtrlPressed
+            if (!shortcut || event.isAltPressed || event.isShiftPressed) return@onPreviewKeyEvent false
+            when (event.key) {
+                Key.O -> {
+                    openFile()
+                    true
+                }
+                Key.S -> {
+                    saveFile(true)
+                    true
+                }
+                else -> false
+            }
+        }
+    ) {
         val wide = maxWidth >= 940.dp
         val splitWidthPx = with(LocalDensity.current) { (maxWidth - 240.dp).toPx() }
         Row(Modifier.fillMaxSize()) {
@@ -751,6 +847,9 @@ private fun AppContent(
                             SettingsMenuRow(ui.colors, settingsSection == SettingsSection.Colors) {
                                 settingsSection = SettingsSection.Colors
                             }
+                            SettingsMenuRow(ui.text, settingsSection == SettingsSection.Text) {
+                                settingsSection = SettingsSection.Text
+                            }
                         }
                         Box(Modifier.fillMaxHeight().width(1.dp).background(colors.divider))
                         Column(
@@ -783,6 +882,11 @@ private fun AppContent(
                                             }
                                         }
                                     }
+                                }
+                                SettingsSection.Text -> {
+                                    Text(ui.textSize, color = colors.foreground, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                                    Text(ui.textSizeHint, color = colors.secondary, fontSize = 11.sp, lineHeight = 16.sp)
+                                    InterfaceScaleControl(interfaceScale, onInterfaceScaleChange)
                                 }
                             }
                         }
@@ -1074,9 +1178,10 @@ private fun EditorPane(
     onZoomChange: (Float) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val colors = LocalKomdPalette.current
     val density = LocalDensity.current
     var editorHasFocus by remember { mutableStateOf(false) }
+    CompositionLocalProvider(LocalKomdPalette provides paperPalette(LocalKomdPalette.current.accent)) {
+    val colors = LocalKomdPalette.current
     val lineCount = content.lines().size
     val wordCount = content.trim().split(Regex("\\s+")).count { it.isNotEmpty() }
     Column(modifier.background(colors.background)) {
@@ -1093,7 +1198,8 @@ private fun EditorPane(
             ZoomControl(zoom, onZoomChange)
         }
         DividerLine(colors)
-        CompositionLocalProvider(LocalDensity provides Density(density.density, density.fontScale * zoom)) {
+        val documentScale = LocalInterfaceScale.current.coerceAtLeast(0.5f)
+        CompositionLocalProvider(LocalDensity provides Density(density.density, density.fontScale / documentScale * zoom)) {
             Row(
                 Modifier.fillMaxWidth().weight(1f).padding(start = 14.dp, top = 13.dp, end = 14.dp, bottom = 10.dp),
                 verticalAlignment = Alignment.Top
@@ -1145,6 +1251,7 @@ private fun EditorPane(
                 )
             }
         }
+    }
     }
 }
 
@@ -1211,8 +1318,9 @@ private fun PreviewPane(
     onZoomChange: (Float) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val colors = LocalKomdPalette.current
     val density = LocalDensity.current
+    CompositionLocalProvider(LocalKomdPalette provides paperPalette(LocalKomdPalette.current.accent)) {
+    val colors = LocalKomdPalette.current
     Column(modifier.background(colors.background)) {
         Row(
             Modifier.fillMaxWidth().height(40.dp).background(colors.toolbar).padding(horizontal = 18.dp),
@@ -1229,7 +1337,8 @@ private fun PreviewPane(
             Text("↗  ·  ⎙", color = colors.secondary, fontSize = 12.sp)
         }
         DividerLine(colors)
-        CompositionLocalProvider(LocalDensity provides Density(density.density, density.fontScale * zoom)) {
+        val documentScale = LocalInterfaceScale.current.coerceAtLeast(0.5f)
+        CompositionLocalProvider(LocalDensity provides Density(density.density, density.fontScale / documentScale * zoom)) {
             Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
                 Column(Modifier.widthIn(max = 780.dp).fillMaxWidth().padding(horizontal = 32.dp, vertical = 28.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1242,6 +1351,7 @@ private fun PreviewPane(
                 }
             }
         }
+    }
     }
 }
 
@@ -1275,6 +1385,37 @@ private fun unescapeHtmlAttribute(value: String): String = value
     .replace("&lt;", "<")
     .replace("&gt;", ">")
     .replace("&amp;", "&")
+
+@Composable
+private fun InterfaceScaleControl(scale: Float, onChange: (Float) -> Unit) {
+    val colors = LocalKomdPalette.current
+    Row(
+        Modifier.clip(RoundedCornerShape(7.dp)).background(colors.button),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            "−",
+            Modifier.clickable { onChange(((scale * 10).roundToInt() - 1).coerceAtLeast(9) / 10f) }
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            color = colors.foreground,
+            fontSize = 16.sp
+        )
+        Text(
+            "${(scale * 100).roundToInt()}%",
+            Modifier.clickable { onChange(1f) }.padding(horizontal = 8.dp, vertical = 8.dp),
+            color = colors.accent,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.SemiBold
+        )
+        Text(
+            "+",
+            Modifier.clickable { onChange(((scale * 10).roundToInt() + 1).coerceAtMost(18) / 10f) }
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            color = colors.foreground,
+            fontSize = 16.sp
+        )
+    }
+}
 
 @Composable
 private fun ZoomControl(zoom: Float, onZoomChange: (Float) -> Unit) {
@@ -1326,7 +1467,9 @@ private fun DividerLine(colors: KomdPalette) = Box(Modifier.fillMaxWidth().heigh
 @Composable
 private fun Splitter(colors: KomdPalette, availableWidthPx: Float, onDrag: (Float) -> Unit) {
     Box(
-        Modifier.width(12.dp).fillMaxHeight().background(colors.background).pointerInput(availableWidthPx) {
+        Modifier.width(12.dp).fillMaxHeight().background(Color.White)
+            .pointerHoverIcon(columnResizePointerIcon)
+            .pointerInput(availableWidthPx) {
             detectDragGestures { _, dragAmount ->
                 if (availableWidthPx > 0f) onDrag(dragAmount.x / availableWidthPx)
             }
