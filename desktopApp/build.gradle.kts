@@ -26,6 +26,12 @@ compose.desktop {
             macOS {
                 iconFile.set(project.file("src/main/resources/KoMD.icns"))
             }
+            windows {
+                iconFile.set(project.file("src/main/resources/KoMD.ico"))
+            }
+            linux {
+                iconFile.set(project.file("src/main/resources/KoMD.png"))
+            }
         }
     }
 }
