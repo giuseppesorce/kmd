@@ -35,3 +35,17 @@ class InsertSnippetTest {
         assertEquals("abcx", result.text)
     }
 }
+
+class ScaledScrollTest {
+    @Test
+    fun mapsProportionally() = assertEquals(500, scaledScroll(fromValue = 100, fromMax = 200, toMax = 1000))
+
+    @Test
+    fun emptyRangesMapToTop() {
+        assertEquals(0, scaledScroll(50, 0, 1000))
+        assertEquals(0, scaledScroll(50, 100, 0))
+    }
+
+    @Test
+    fun clampsToTargetRange() = assertEquals(1000, scaledScroll(300, 200, 1000))
+}
