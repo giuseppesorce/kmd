@@ -110,7 +110,8 @@ private fun lightAccentOptions(strings: AppStrings) = listOf(
 )
 internal val LocalKomdPalette = staticCompositionLocalOf { darkPalette }
 
-private data class Document(val name: String, val content: String, val file: PlatformFile? = null)
+/** [baseline] is the last saved (or loaded) text: a document is dirty when its content differs from it. */
+private data class Document(val name: String, val content: String, val file: PlatformFile? = null, val baseline: String = content)
 
 private enum class UiLanguage(val nativeName: String) {
     Italian("Italiano"), English("English"), French("Français"), Spanish("Español"), German("Deutsch")
@@ -227,9 +228,18 @@ internal data class AppStrings(
     val colorRose: String,
     val colorHoney: String,
     val colorSage: String,
+    val menuFile: String,
+    val closeDocument: String,
+    val unsavedTitle: String,
+    val unsavedMessage: String,
+    val dontSave: String,
+    val exitUnsavedMessage: String,
+    val exitWithoutSaving: String,
+    val noDocuments: String,
+    val noDocumentsHint: String,
 )
 
-private val italianStrings = AppStrings(
+internal val italianStrings = AppStrings(
     tagline = "Editor Markdown", newDocument = "Nuovo documento", openFile = "Apri file", save = "Salva", saveAs = "Salva con nome…",
     documents = "DOCUMENTI", quickElements = "ELEMENTI RAPIDI", table = "Tabella", image = "Immagine", link = "Link",
     customLink = "Custom Link", code = "Codice", list = "Elenco", quote = "Citazione", settings = "Impostazioni",
@@ -257,7 +267,11 @@ private val italianStrings = AppStrings(
     welcomeQuote = "KoMD — Markdown, senza distrazioni.", notesName = "Appunti.md", websiteName = "Sito_Web.md", draftName = "Bozza.md",
     websiteTitle = "Sito web", websiteDraft = "Bozza per il prossimo progetto.", ideasTitle = "Idee", ideasPrompt = "Aggiungi qui le tue note.",
     untitledName = "Senza titolo.md", untitledTitle = "Senza titolo", colorMandarin = "Mandarino", colorApricot = "Albicocca",
-    colorPeach = "Pesca", colorTerracotta = "Terracotta", colorRose = "Rosa", colorHoney = "Miele", colorSage = "Salvia"
+    colorPeach = "Pesca", colorTerracotta = "Terracotta", colorRose = "Rosa", colorHoney = "Miele", colorSage = "Salvia",
+    menuFile = "File", closeDocument = "Chiudi", unsavedTitle = "Modifiche non salvate",
+    unsavedMessage = "Vuoi salvare le modifiche a \"{name}\" prima di chiuderlo?", dontSave = "Non salvare",
+    exitUnsavedMessage = "Documenti con modifiche non salvate: {count}. Se esci andranno perse.", exitWithoutSaving = "Esci senza salvare",
+    noDocuments = "Nessun documento aperto", noDocumentsHint = "Crea un nuovo documento o aprine uno dal disco."
 )
 
 private val englishStrings = AppStrings(
@@ -288,7 +302,11 @@ private val englishStrings = AppStrings(
     welcomeQuote = "KoMD — Markdown, without distractions.", notesName = "Notes.md", websiteName = "Website.md", draftName = "Draft.md",
     websiteTitle = "Website", websiteDraft = "A draft for the next project.", ideasTitle = "Ideas", ideasPrompt = "Add your notes here.",
     untitledName = "Untitled.md", untitledTitle = "Untitled", colorMandarin = "Mandarin", colorApricot = "Apricot",
-    colorPeach = "Peach", colorTerracotta = "Terracotta", colorRose = "Rose", colorHoney = "Honey", colorSage = "Sage"
+    colorPeach = "Peach", colorTerracotta = "Terracotta", colorRose = "Rose", colorHoney = "Honey", colorSage = "Sage",
+    menuFile = "File", closeDocument = "Close", unsavedTitle = "Unsaved changes",
+    unsavedMessage = "Do you want to save the changes to \"{name}\" before closing it?", dontSave = "Don't save",
+    exitUnsavedMessage = "Documents with unsaved changes: {count}. They will be lost if you quit.", exitWithoutSaving = "Quit without saving",
+    noDocuments = "No open documents", noDocumentsHint = "Create a new document or open one from disk."
 )
 
 private val frenchStrings = AppStrings(
@@ -319,7 +337,11 @@ private val frenchStrings = AppStrings(
     welcomeQuote = "KoMD — Markdown, sans distraction.", notesName = "Notes.md", websiteName = "Site_Web.md", draftName = "Brouillon.md",
     websiteTitle = "Site web", websiteDraft = "Brouillon pour le prochain projet.", ideasTitle = "Idées", ideasPrompt = "Ajoutez vos notes ici.",
     untitledName = "Sans_titre.md", untitledTitle = "Sans titre", colorMandarin = "Mandarine", colorApricot = "Abricot",
-    colorPeach = "Pêche", colorTerracotta = "Terracotta", colorRose = "Rose", colorHoney = "Miel", colorSage = "Sauge"
+    colorPeach = "Pêche", colorTerracotta = "Terracotta", colorRose = "Rose", colorHoney = "Miel", colorSage = "Sauge",
+    menuFile = "Fichier", closeDocument = "Fermer", unsavedTitle = "Modifications non enregistrées",
+    unsavedMessage = "Voulez-vous enregistrer les modifications de « {name} » avant de le fermer ?", dontSave = "Ne pas enregistrer",
+    exitUnsavedMessage = "Documents avec des modifications non enregistrées : {count}. Elles seront perdues si vous quittez.", exitWithoutSaving = "Quitter sans enregistrer",
+    noDocuments = "Aucun document ouvert", noDocumentsHint = "Créez un nouveau document ou ouvrez-en un depuis le disque."
 )
 
 private val spanishStrings = AppStrings(
@@ -350,7 +372,11 @@ private val spanishStrings = AppStrings(
     welcomeQuote = "KoMD — Markdown, sin distracciones.", notesName = "Notas.md", websiteName = "Sitio_Web.md", draftName = "Borrador.md",
     websiteTitle = "Sitio web", websiteDraft = "Borrador para el próximo proyecto.", ideasTitle = "Ideas", ideasPrompt = "Añade aquí tus notas.",
     untitledName = "Sin_título.md", untitledTitle = "Sin título", colorMandarin = "Mandarina", colorApricot = "Albaricoque",
-    colorPeach = "Melocotón", colorTerracotta = "Terracota", colorRose = "Rosa", colorHoney = "Miel", colorSage = "Salvia"
+    colorPeach = "Melocotón", colorTerracotta = "Terracota", colorRose = "Rosa", colorHoney = "Miel", colorSage = "Salvia",
+    menuFile = "Archivo", closeDocument = "Cerrar", unsavedTitle = "Cambios sin guardar",
+    unsavedMessage = "¿Quieres guardar los cambios en «{name}» antes de cerrarlo?", dontSave = "No guardar",
+    exitUnsavedMessage = "Documentos con cambios sin guardar: {count}. Se perderán si sales.", exitWithoutSaving = "Salir sin guardar",
+    noDocuments = "No hay documentos abiertos", noDocumentsHint = "Crea un documento nuevo o abre uno desde el disco."
 )
 
 private val germanStrings = AppStrings(
@@ -381,7 +407,11 @@ private val germanStrings = AppStrings(
     welcomeQuote = "KoMD — Markdown ohne Ablenkung.", notesName = "Notizen.md", websiteName = "Website.md", draftName = "Entwurf.md",
     websiteTitle = "Website", websiteDraft = "Entwurf für das nächste Projekt.", ideasTitle = "Ideen", ideasPrompt = "Füge hier deine Notizen hinzu.",
     untitledName = "Unbenannt.md", untitledTitle = "Unbenannt", colorMandarin = "Mandarine", colorApricot = "Aprikose",
-    colorPeach = "Pfirsich", colorTerracotta = "Terrakotta", colorRose = "Rosa", colorHoney = "Honig", colorSage = "Salbei"
+    colorPeach = "Pfirsich", colorTerracotta = "Terrakotta", colorRose = "Rosa", colorHoney = "Honig", colorSage = "Salbei",
+    menuFile = "Datei", closeDocument = "Schließen", unsavedTitle = "Nicht gespeicherte Änderungen",
+    unsavedMessage = "Möchtest du die Änderungen an „{name}“ vor dem Schließen speichern?", dontSave = "Nicht speichern",
+    exitUnsavedMessage = "Dokumente mit nicht gespeicherten Änderungen: {count}. Sie gehen beim Beenden verloren.", exitWithoutSaving = "Ohne Speichern beenden",
+    noDocuments = "Keine geöffneten Dokumente", noDocumentsHint = "Erstelle ein neues Dokument oder öffne eines von der Festplatte."
 )
 
 private fun stringsFor(language: UiLanguage): AppStrings = when (language) {
@@ -440,8 +470,13 @@ private fun workspaceModeLabel(mode: WorkspaceMode, strings: AppStrings): String
     WorkspaceMode.Preview -> strings.preview
 }
 
+/**
+ * @param commands when given, the platform shell (desktop menu bar) owns the file shortcuts
+ *   and drives save / close / exit through it; otherwise App handles the shortcuts itself.
+ * @param onExit invoked when the app should quit, after unsaved changes have been confirmed.
+ */
 @Composable
-fun App() {
+fun App(commands: AppCommands? = null, onExit: () -> Unit = {}) {
     var darkTheme by remember { mutableStateOf(false) }
     var language by remember { mutableStateOf(UiLanguage.Italian) }
     var lightAccent by remember { mutableStateOf(lightPalette.accent) }
@@ -462,7 +497,9 @@ fun App() {
             language = language,
             onLanguageChange = { language = it },
             interfaceScale = interfaceScale,
-            onInterfaceScaleChange = { interfaceScale = it }
+            onInterfaceScaleChange = { interfaceScale = it },
+            commands = commands,
+            onExit = onExit
         )
     }
 }
@@ -476,7 +513,9 @@ private fun AppContent(
     language: UiLanguage,
     onLanguageChange: (UiLanguage) -> Unit,
     interfaceScale: Float,
-    onInterfaceScaleChange: (Float) -> Unit
+    onInterfaceScaleChange: (Float) -> Unit,
+    commands: AppCommands?,
+    onExit: () -> Unit
 ) {
     val colors = LocalKomdPalette.current
     val ui = LocalUiStrings.current
@@ -522,7 +561,8 @@ private fun AppContent(
                 val untouchedSample = index in oldSamples.indices && document.content == oldSamples[index].content
                 document.copy(
                     name = if (index in oldSamples.indices && document.name == oldSamples[index].name) newSamples[index].name else document.name,
-                    content = if (untouchedSample) newSamples[index].content else document.content
+                    content = if (untouchedSample) newSamples[index].content else document.content,
+                    baseline = if (untouchedSample) newSamples[index].content else document.baseline
                 )
             }.toMutableList()
             if (selectedSampleIsUntouched) replaceContent(newSamples[selectedIndex].content)
@@ -556,23 +596,33 @@ private fun AppContent(
             }
         }
     )
+    // Action to run once the "Save as" dialog has written the file (e.g. close the document after "Save").
+    var afterSaveAs by remember { mutableStateOf<(() -> Unit)?>(null) }
     val saver = rememberFileSaverLauncher(
         dialogSettings = FileKitDialogSettings.createDefault(),
-        onError = { fileMessage = ui.saveFailure.replace("{error}", it.message ?: ui.unknownError) },
+        onError = {
+            afterSaveAs = null
+            fileMessage = ui.saveFailure.replace("{error}", it.message ?: ui.unknownError)
+        },
         onResult = { file ->
+            val afterSave = afterSaveAs
+            afterSaveAs = null
             if (file != null) scope.launch {
-                runCatching { file.writeString(latestContent) }
+                val text = latestContent
+                runCatching { file.writeString(text) }
                     .onSuccess {
                         documents = documents.toMutableList().also { list ->
-                            if (selectedIndex in list.indices) list[selectedIndex] = list[selectedIndex].copy(name = file.name, content = latestContent, file = file)
+                            if (selectedIndex in list.indices) list[selectedIndex] = list[selectedIndex].copy(name = file.name, content = text, file = file, baseline = text)
                         }
                         fileMessage = ui.saved.replace("{name}", file.name)
+                        afterSave?.invoke()
                     }
                     .onFailure { fileMessage = ui.saveFailure.replace("{error}", it.message ?: ui.unknownError) }
             }
         }
     )
-    val insertAtCursor: (String) -> Unit = { snippet ->
+    val insertAtCursor: (String) -> Unit = insert@{ snippet ->
+        if (documents.isEmpty()) return@insert
         val result = insertSnippet(content, selection, snippet)
         content = result.text
         selection = result.selection
@@ -612,23 +662,28 @@ private fun AppContent(
         fileMessage = null
         picker.launch()
     }
-    val saveFile: (Boolean) -> Unit = { overwrite ->
+    /** Saves the current document: in place when [overwrite] and it has a file, otherwise via "Save as". [onSaved] runs only on success. */
+    val saveDocument: (overwrite: Boolean, onSaved: (() -> Unit)?) -> Unit = save@{ overwrite, onSaved ->
         val index = selectedIndex
-        val existing = documents.getOrNull(index)?.file
+        if (index !in documents.indices) return@save
+        val existing = documents[index].file
         if (overwrite && existing != null) {
             fileMessage = null
             scope.launch {
-                runCatching { existing.writeString(latestContent) }
+                val text = latestContent
+                runCatching { existing.writeString(text) }
                     .onSuccess {
                         documents = documents.toMutableList().also { list ->
-                            if (index in list.indices) list[index] = list[index].copy(content = latestContent)
+                            if (index in list.indices) list[index] = list[index].copy(content = text, baseline = text)
                         }
                         fileMessage = ui.saved.replace("{name}", existing.name)
+                        onSaved?.invoke()
                     }
                     .onFailure { fileMessage = ui.saveFailure.replace("{error}", it.message ?: ui.unknownError) }
             }
         } else {
             fileMessage = null
+            afterSaveAs = onSaved
             saver.launch(
                 suggestedName = documents.getOrNull(index)?.name?.substringBeforeLast('.') ?: ui.untitledTitle,
                 defaultExtension = "md",
@@ -636,9 +691,72 @@ private fun AppContent(
             )
         }
     }
+    val saveFile: (Boolean) -> Unit = { overwrite -> saveDocument(overwrite, null) }
+    val newDocument = {
+        documents = documents.toMutableList().also { list ->
+            if (selectedIndex in list.indices) list[selectedIndex] = list[selectedIndex].copy(content = content)
+        } + Document(ui.untitledName, "# ${ui.untitledTitle}\n\n")
+        selectedIndex = documents.lastIndex
+        replaceContent(documents.last().content)
+    }
+
+    // --- Close / exit with unsaved-changes confirmation -------------------------------------
+    var pendingCloseIndex by remember { mutableStateOf<Int?>(null) }
+    var showExitConfirm by remember { mutableStateOf(false) }
+    val isDirty: (Int) -> Boolean = { index ->
+        val document = documents[index]
+        (if (index == selectedIndex) content else document.content) != document.baseline
+    }
+    val removeDocument: (Int) -> Unit = { index ->
+        val list = documents.toMutableList()
+        if (selectedIndex in list.indices) list[selectedIndex] = list[selectedIndex].copy(content = content)
+        if (index in list.indices) list.removeAt(index)
+        documents = list
+        selectedIndex = when {
+            list.isEmpty() -> 0
+            index < selectedIndex -> selectedIndex - 1
+            else -> selectedIndex.coerceAtMost(list.lastIndex)
+        }
+        replaceContent(list.getOrNull(selectedIndex)?.content ?: "")
+        fileMessage = null
+    }
+    val requestExit: () -> Unit = {
+        if (documents.indices.any(isDirty)) {
+            showExitConfirm = true
+        } else {
+            onExit()
+        }
+    }
+    /** Closes the current document (asking to save if dirty); with no document open, it asks to exit. */
+    val closeCurrent: () -> Unit = {
+        if (documents.isEmpty()) {
+            requestExit()
+        } else if (isDirty(selectedIndex)) {
+            pendingCloseIndex = selectedIndex
+        } else {
+            removeDocument(selectedIndex)
+        }
+    }
+
+    if (commands != null) {
+        val labels = MenuLabels.fromStrings(ui)
+        SideEffect {
+            commands.labels = labels
+            commands.target = AppCommands.Target(
+                newDocument = newDocument,
+                open = openFile,
+                save = { saveFile(true) },
+                saveAs = { saveFile(false) },
+                close = closeCurrent,
+                requestExit = requestExit,
+            )
+        }
+        DisposableEffect(commands) { onDispose { commands.target = null } }
+    }
     BoxWithConstraints(
         Modifier.fillMaxSize().background(colors.background).onPreviewKeyEvent { event ->
-            if (event.type != KeyEventType.KeyUp) return@onPreviewKeyEvent false
+            // With a shell-provided command bridge the menu accelerators handle the shortcuts.
+            if (commands != null || event.type != KeyEventType.KeyUp) return@onPreviewKeyEvent false
             val shortcut = if (shortcutUsesCommand) event.isMetaPressed else event.isCtrlPressed
             if (!shortcut || event.isAltPressed) return@onPreviewKeyEvent false
             if (event.isShiftPressed) {
@@ -651,6 +769,10 @@ private fun AppContent(
                 }
                 Key.S -> {
                     saveFile(true)
+                    true
+                }
+                Key.W -> {
+                    closeCurrent()
                     true
                 }
                 else -> false
@@ -669,11 +791,7 @@ private fun AppContent(
                         selectedIndex = index
                         replaceContent(documents[index].content)
                     },
-                    onNew = {
-                        documents = documents + Document(ui.untitledName, "# ${ui.untitledTitle}\n\n")
-                        selectedIndex = documents.lastIndex
-                        replaceContent(documents.last().content)
-                    },
+                    onNew = newDocument,
                     onOpen = { fileMessage = null; picker.launch() },
                     onSave = { saveFile(true) },
                     onSaveAs = { saveFile(false) },
@@ -725,6 +843,7 @@ private fun AppContent(
                     }, ui, editorZoom, { editorZoom = it }, editorScroll, paneModifier)
                 }
                 when {
+                    documents.isEmpty() -> EmptyWorkspace(ui, onNew = newDocument, onOpen = openFile, modifier = Modifier.weight(1f).fillMaxWidth())
                     wide && workspaceMode == WorkspaceMode.Split -> Row(Modifier.weight(1f).fillMaxWidth()) {
                         editorPane(Modifier.weight(splitRatio).fillMaxHeight())
                         Splitter(
@@ -845,6 +964,37 @@ private fun AppContent(
             )
         }
 
+        pendingCloseIndex?.let { index ->
+            val name = documents.getOrNull(index)?.name ?: ""
+            AlertDialog(
+                onDismissRequest = { pendingCloseIndex = null },
+                title = { Text(ui.unsavedTitle) },
+                text = { Text(ui.unsavedMessage.replace("{name}", name)) },
+                confirmButton = {
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        TextButton(onClick = { pendingCloseIndex = null; removeDocument(index) }) { Text(ui.dontSave) }
+                        TextButton(onClick = {
+                            pendingCloseIndex = null
+                            // Save may go through "Save as": the document is closed only if the save succeeds.
+                            saveDocument(true) { removeDocument(index) }
+                        }) { Text(ui.save) }
+                    }
+                },
+                dismissButton = { TextButton(onClick = { pendingCloseIndex = null }) { Text(ui.cancel) } }
+            )
+        }
+
+        if (showExitConfirm) {
+            val dirtyCount = documents.indices.count(isDirty)
+            AlertDialog(
+                onDismissRequest = { showExitConfirm = false },
+                title = { Text(ui.unsavedTitle) },
+                text = { Text(ui.exitUnsavedMessage.replace("{count}", dirtyCount.toString())) },
+                confirmButton = { TextButton(onClick = { showExitConfirm = false; onExit() }) { Text(ui.exitWithoutSaving) } },
+                dismissButton = { TextButton(onClick = { showExitConfirm = false }) { Text(ui.cancel) } }
+            )
+        }
+
         if (showSettings) {
             AlertDialog(
                 onDismissRequest = { showSettings = false },
@@ -910,6 +1060,25 @@ private fun AppContent(
             )
         }
     }
+
+@Composable
+private fun EmptyWorkspace(ui: AppStrings, onNew: () -> Unit, onOpen: () -> Unit, modifier: Modifier = Modifier) {
+    val colors = LocalKomdPalette.current
+    Column(
+        modifier.background(colors.background).padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text(ui.noDocuments, color = colors.foreground, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+        Spacer(Modifier.height(6.dp))
+        Text(ui.noDocumentsHint, color = colors.secondary, fontSize = 12.sp)
+        Spacer(Modifier.height(14.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            SmallButton(ui.newDocument, onNew)
+            SmallButton(ui.openFile, onOpen)
+        }
+    }
+}
 
 @Composable
 private fun AppTopBar(
