@@ -35,6 +35,7 @@ kotlin {
             implementation(libs.coil.compose)
             implementation(libs.coil.network.ktor3)
         }
+        commonTest.dependencies { implementation(libs.kotlin.test) }
         getByName("androidMain").dependencies { implementation(libs.ktor.client.android) }
         getByName("iosArm64Main").dependencies { implementation(libs.ktor.client.darwin) }
         getByName("iosSimulatorArm64Main").dependencies { implementation(libs.ktor.client.darwin) }

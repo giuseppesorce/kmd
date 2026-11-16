@@ -58,6 +58,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.TextStyle
 import coil3.compose.AsyncImage
+import androidx.compose.ui.graphics.FilterQuality
 import kotlinx.coroutines.delay
 
 private sealed interface MdInline {
@@ -428,11 +429,17 @@ private fun MarkdownImage(image: PreviewImage, imageUnsupported: String) {
         ImageAlignment.Right -> Alignment.CenterEnd
     }
     Box(Modifier.fillMaxWidth().padding(bottom = 14.dp), contentAlignment = alignment) {
+        // Like GitHub's `max-width:100%`: natural size, capped only by the column width. The old
+        // 420dp height cap shrank a 1080×2404 phone screenshot to ~18% and made its text unreadable.
+        val sizeModifier = if (image.width != null) Modifier.width(image.width.dp) else Modifier
         AsyncImage(
             model = model,
             contentDescription = image.alt,
             contentScale = ContentScale.Fit,
-            modifier = Modifier.widthIn(max = 640.dp).heightIn(max = 420.dp)
+            // Default is Low (bilinear, no mipmaps): downscaling a 1080×2404 screenshot to ~420dp
+            // aliases text badly. High uses mipmapped/cubic sampling on Skia.
+            filterQuality = FilterQuality.High,
+            modifier = sizeModifier
         )
     }
 }

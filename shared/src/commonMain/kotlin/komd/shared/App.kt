@@ -35,7 +35,9 @@ import androidx.compose.ui.input.pointer.isMetaPressed
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -389,7 +391,13 @@ private fun stringsFor(language: UiLanguage): AppStrings = when (language) {
 internal val LocalUiStrings = staticCompositionLocalOf { italianStrings }
 private val LocalInterfaceScale = staticCompositionLocalOf { 1f }
 
-internal data class PreviewImage(val alt: String, val source: String, val alignment: ImageAlignment)
+internal data class PreviewImage(
+    val alt: String,
+    val source: String,
+    val alignment: ImageAlignment,
+    /** Explicit display width in dp, from `<img width="…">` or `style="width:…px"`. */
+    val width: Int? = null,
+)
 
 private fun welcomeText(strings: AppStrings): String = """# ${strings.welcomeTitle}
 
@@ -472,6 +480,14 @@ private fun AppContent(
     var documents by remember { mutableStateOf(initialDocuments(ui)) }
     var selectedIndex by remember { mutableIntStateOf(0) }
     var content by remember { mutableStateOf(welcomeText(ui)) }
+    // Caret/selection of the editor, kept outside the text field so toolbar inserts land where the user is.
+    var selection by remember { mutableStateOf(TextRange(content.length)) }
+    var composition by remember { mutableStateOf<TextRange?>(null) }
+    val replaceContent: (String) -> Unit = { newContent ->
+        content = newContent
+        selection = TextRange(newContent.length)
+        composition = null
+    }
     var editorZoom by remember { mutableFloatStateOf(1f) }
     var previewZoom by remember { mutableFloatStateOf(1f) }
     var workspaceMode by remember { mutableStateOf(WorkspaceMode.Split) }
@@ -501,7 +517,7 @@ private fun AppContent(
                     content = if (untouchedSample) newSamples[index].content else document.content
                 )
             }.toMutableList()
-            if (selectedSampleIsUntouched) content = newSamples[selectedIndex].content
+            if (selectedSampleIsUntouched) replaceContent(newSamples[selectedIndex].content)
             if (selectedIndex in translatedDocuments.indices) {
                 translatedDocuments[selectedIndex] = translatedDocuments[selectedIndex].copy(content = content)
             }
@@ -525,7 +541,7 @@ private fun AppContent(
                             list += Document(file.name, loaded, file)
                         }
                         selectedIndex = documents.lastIndex
-                        content = loaded
+                        replaceContent(loaded)
                         fileMessage = ui.opened.replace("{name}", file.name)
                     }
                     .onFailure { fileMessage = ui.readFailure.replace("{error}", it.message ?: ui.unknownError) }
@@ -548,17 +564,20 @@ private fun AppContent(
             }
         }
     )
-    val insertImage: (String, String) -> Unit = { alt, source ->
-        content += "\n${alignedImageHtml(alt, source, imageAlignment)}\n"
+    val insertAtCursor: (String) -> Unit = { snippet ->
+        val result = insertSnippet(content, selection, snippet)
+        content = result.text
+        selection = result.selection
+        composition = null
         documents = documents.toMutableList().also { list ->
             if (selectedIndex in list.indices) list[selectedIndex] = list[selectedIndex].copy(content = content)
         }
     }
+    val insertImage: (String, String) -> Unit = { alt, source ->
+        insertAtCursor(alignedImageHtml(alt, source, imageAlignment))
+    }
     val insertLink: (String, String) -> Unit = { label, target ->
-        content += "\n${markdownLink(label, target)}\n"
-        documents = documents.toMutableList().also { list ->
-            if (selectedIndex in list.indices) list[selectedIndex] = list[selectedIndex].copy(content = content)
-        }
+        insertAtCursor(markdownLink(label, target))
     }
     val imagePicker = rememberFilePickerLauncher(
         type = FileKitType.Image,
@@ -637,12 +656,12 @@ private fun AppContent(
                     onSelect = { index ->
                         documents = documents.toMutableList().also { it[selectedIndex] = it[selectedIndex].copy(content = content) }
                         selectedIndex = index
-                        content = documents[index].content
+                        replaceContent(documents[index].content)
                     },
                     onNew = {
                         documents = documents + Document(ui.untitledName, "# ${ui.untitledTitle}\n\n")
                         selectedIndex = documents.lastIndex
-                        content = documents.last().content
+                        replaceContent(documents.last().content)
                     },
                     onOpen = { fileMessage = null; picker.launch() },
                     onSave = {
@@ -654,7 +673,7 @@ private fun AppContent(
                         )
                     },
                     fileMessage = fileMessage,
-                    onInsert = { content += it },
+                    onInsert = insertAtCursor,
                     onImage = { showImageOptions = true },
                     onCustomLink = { showCustomLinkDialog = true },
                     onSettings = { showSettings = true },
@@ -669,7 +688,7 @@ private fun AppContent(
                     darkTheme = darkTheme,
                     onToggleTheme = onToggleTheme,
                     onSettings = { showSettings = true },
-                    onInsert = { content += it },
+                    onInsert = insertAtCursor,
                     onOpen = { fileMessage = null; picker.launch() },
                     onSave = {
                         fileMessage = null
@@ -706,9 +725,12 @@ private fun AppContent(
                 if (!wide) fileMessage?.let { Text(it, Modifier.fillMaxWidth().background(colors.sidebar).padding(horizontal = 18.dp, vertical = 7.dp), color = colors.secondary, fontSize = 12.sp) }
 
                 val editorPane: @Composable (Modifier) -> Unit = { paneModifier ->
-                    EditorPane(content, { newValue ->
-                        content = newValue
-                        documents = documents.toMutableList().also { if (selectedIndex in it.indices) it[selectedIndex] = it[selectedIndex].copy(content = newValue) }
+                    EditorPane(TextFieldValue(content, selection, composition), { newValue ->
+                        val textChanged = newValue.text != content
+                        content = newValue.text
+                        selection = newValue.selection
+                        composition = newValue.composition
+                        if (textChanged) documents = documents.toMutableList().also { if (selectedIndex in it.indices) it[selectedIndex] = it[selectedIndex].copy(content = newValue.text) }
                     }, ui, editorZoom, { editorZoom = it }, paneModifier)
                 }
                 when {
@@ -737,13 +759,13 @@ private fun AppContent(
                         SmallButton(label) {
                             if (label == ui.image) showImageOptions = true
                             else if (label == ui.customLink) showCustomLinkDialog = true
-                            else content += when (label) {
+                            else insertAtCursor(when (label) {
                                 ui.table -> "\n| ${ui.column} 1 | ${ui.column} 2 |\n| --- | --- |\n| ${ui.value} | ${ui.value} |\n"
                                 ui.link -> "[${ui.link}](https://)"
                                 ui.code -> "\n```\n ${ui.code}\n```\n"
                                 ui.list -> "\n- ${ui.listItem}\n- ${ui.listItem}\n"
                                 else -> "\n> ${ui.quoteExample}\n"
-                            }
+                            })
                         }
                     }
                 }
@@ -1174,8 +1196,8 @@ private fun SidebarUtilityButton(label: String, modifier: Modifier = Modifier, o
 
 @Composable
 private fun EditorPane(
-    content: String,
-    onChange: (String) -> Unit,
+    value: TextFieldValue,
+    onChange: (TextFieldValue) -> Unit,
     ui: AppStrings,
     zoom: Float,
     onZoomChange: (Float) -> Unit,
@@ -1185,6 +1207,7 @@ private fun EditorPane(
     var editorHasFocus by remember { mutableStateOf(false) }
     CompositionLocalProvider(LocalKomdPalette provides paperPalette(LocalKomdPalette.current.accent)) {
     val colors = LocalKomdPalette.current
+    val content = value.text
     val lineCount = content.lines().size
     val wordCount = content.trim().split(Regex("\\s+")).count { it.isNotEmpty() }
     Column(modifier.background(colors.background)) {
@@ -1216,7 +1239,7 @@ private fun EditorPane(
                     fontFamily = FontFamily.Monospace
                 )
                 BasicTextField(
-                    value = content,
+                    value = value,
                     onValueChange = onChange,
                     modifier = Modifier.weight(1f).fillMaxHeight()
                         .verticalScroll(rememberScrollState())
@@ -1271,6 +1294,27 @@ private fun ImageAlignmentPicker(selected: ImageAlignment, ui: AppStrings, onCha
             }
         }
     }
+}
+
+internal data class InsertResult(val text: String, val selection: TextRange)
+
+/**
+ * Inserts [snippet] at the caret, replacing any selected text. Block-level snippets (those that
+ * start with a newline, and `<img>` tags) are padded so they always
+ * sit on their own line, without doubling blank lines that are already there.
+ */
+internal fun insertSnippet(text: String, selection: TextRange, snippet: String): InsertResult {
+    val start = selection.min.coerceIn(0, text.length)
+    val end = selection.max.coerceIn(start, text.length)
+    val block = snippet.startsWith("\n") || snippet.startsWith("<img")
+    val body = if (block) snippet.trim('\n') else snippet
+    val before = text.substring(0, start)
+    val after = text.substring(end)
+    val prefix = if (block && before.isNotEmpty() && !before.endsWith("\n")) "\n" else ""
+    val suffix = if (block && !after.startsWith("\n")) "\n" else ""
+    val inserted = prefix + body + suffix
+    val caret = start + prefix.length + body.length + suffix.length
+    return InsertResult(before + inserted + after, TextRange(caret))
 }
 
 private fun alignedImageHtml(alt: String, source: String, alignment: ImageAlignment): String {
@@ -1375,7 +1419,9 @@ internal fun parsePreviewImage(line: String): PreviewImage? {
             "margin-left:auto" in style -> ImageAlignment.Right
             else -> ImageAlignment.Left
         }
-        return PreviewImage(attributes["alt"].orEmpty(), unescapeHtmlAttribute(source), alignment)
+        val width = attributes["width"]?.removeSuffix("px")?.trim()?.toIntOrNull()
+            ?: Regex("""(?:^|;)width:(\d+)px""").find(style)?.groupValues?.get(1)?.toIntOrNull()
+        return PreviewImage(attributes["alt"].orEmpty(), unescapeHtmlAttribute(source), alignment, width?.takeIf { it > 0 })
     }
 
     val markdownMatch = markdownImagePattern.matchEntire(trimmed) ?: return null
