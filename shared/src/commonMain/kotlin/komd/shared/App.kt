@@ -680,6 +680,7 @@ private fun AppContent(
                         )
                     },
                     wide = wide,
+                    previewActive = workspaceMode == WorkspaceMode.Preview,
                     onPreviewToggle = {
                         workspaceMode = if (workspaceMode == WorkspaceMode.Preview) WorkspaceMode.Split else WorkspaceMode.Preview
                     }
@@ -908,6 +909,7 @@ private fun AppTopBar(
     onOpen: () -> Unit,
     onSave: () -> Unit,
     onPreviewToggle: () -> Unit,
+    previewActive: Boolean,
     wide: Boolean
 ) {
     val colors = LocalKomdPalette.current
@@ -921,6 +923,7 @@ private fun AppTopBar(
                 Spacer(Modifier.width(14.dp))
                 SmallButton("↓") { onOpen() }
                 SmallButton("↥") { onSave() }
+                SmallButton(if (previewActive) ui.editor else ui.preview) { onPreviewToggle() }
             } else {
                 Box(Modifier.size(7.dp).clip(RoundedCornerShape(50)).background(Color(0xFF41C9A0)))
                 Spacer(Modifier.width(9.dp))
