@@ -57,8 +57,8 @@ jobs:
         run: ./gradlew :desktopApp:packageDmg --stacktrace
       - name: Check Markdown document types in Info.plist
         run: |
-          plist=$(find desktopApp/build/compose/binaries -name Info.plist -path '*KoMD.app/Contents/*' | head -1)
-          echo "Info.plist: $plist"
+          # The app's own plist, not the one of the bundled JVM runtime under Contents/runtime.
+          plist=desktopApp/build/compose/binaries/main/app/KoMD.app/Contents/Info.plist
           /usr/libexec/PlistBuddy -c 'Print :CFBundleDocumentTypes:0:LSItemContentTypes:0' "$plist" | grep -x net.daringfireball.markdown
       - uses: actions/upload-artifact@v4
         with:
