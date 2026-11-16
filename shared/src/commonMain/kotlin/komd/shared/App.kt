@@ -124,6 +124,7 @@ internal data class AppStrings(
     val newDocument: String,
     val openFile: String,
     val save: String,
+    val saveAs: String,
     val documents: String,
     val quickElements: String,
     val table: String,
@@ -229,7 +230,7 @@ internal data class AppStrings(
 )
 
 private val italianStrings = AppStrings(
-    tagline = "Editor Markdown", newDocument = "Nuovo documento", openFile = "Apri file", save = "Salva",
+    tagline = "Editor Markdown", newDocument = "Nuovo documento", openFile = "Apri file", save = "Salva", saveAs = "Salva con nome…",
     documents = "DOCUMENTI", quickElements = "ELEMENTI RAPIDI", table = "Tabella", image = "Immagine", link = "Link",
     customLink = "Custom Link", code = "Codice", list = "Elenco", quote = "Citazione", settings = "Impostazioni",
     commandSearch = "Cerca o esegui comando…", preview = "Anteprima", activeSession = "SESSIONE ATTIVA", split = "Diviso",
@@ -260,7 +261,7 @@ private val italianStrings = AppStrings(
 )
 
 private val englishStrings = AppStrings(
-    tagline = "Markdown editor", newDocument = "New document", openFile = "Open file", save = "Save",
+    tagline = "Markdown editor", newDocument = "New document", openFile = "Open file", save = "Save", saveAs = "Save as…",
     documents = "DOCUMENTS", quickElements = "QUICK INSERTS", table = "Table", image = "Image", link = "Link",
     customLink = "Custom link", code = "Code", list = "List", quote = "Quote", settings = "Settings",
     commandSearch = "Search or run a command…", preview = "Preview", activeSession = "ACTIVE SESSION", split = "Split",
@@ -291,7 +292,7 @@ private val englishStrings = AppStrings(
 )
 
 private val frenchStrings = AppStrings(
-    tagline = "Éditeur Markdown", newDocument = "Nouveau document", openFile = "Ouvrir un fichier", save = "Enregistrer",
+    tagline = "Éditeur Markdown", newDocument = "Nouveau document", openFile = "Ouvrir un fichier", save = "Enregistrer", saveAs = "Enregistrer sous…",
     documents = "DOCUMENTS", quickElements = "INSERTIONS RAPIDES", table = "Tableau", image = "Image", link = "Lien",
     customLink = "Lien personnalisé", code = "Code", list = "Liste", quote = "Citation", settings = "Paramètres",
     commandSearch = "Rechercher ou lancer une commande…", preview = "Aperçu", activeSession = "SESSION ACTIVE", split = "Divisé",
@@ -322,7 +323,7 @@ private val frenchStrings = AppStrings(
 )
 
 private val spanishStrings = AppStrings(
-    tagline = "Editor Markdown", newDocument = "Nuevo documento", openFile = "Abrir archivo", save = "Guardar",
+    tagline = "Editor Markdown", newDocument = "Nuevo documento", openFile = "Abrir archivo", save = "Guardar", saveAs = "Guardar como…",
     documents = "DOCUMENTOS", quickElements = "INSERCIONES RÁPIDAS", table = "Tabla", image = "Imagen", link = "Enlace",
     customLink = "Enlace personalizado", code = "Código", list = "Lista", quote = "Cita", settings = "Ajustes",
     commandSearch = "Buscar o ejecutar un comando…", preview = "Vista previa", activeSession = "SESIÓN ACTIVA", split = "Dividido",
@@ -353,7 +354,7 @@ private val spanishStrings = AppStrings(
 )
 
 private val germanStrings = AppStrings(
-    tagline = "Markdown-Editor", newDocument = "Neues Dokument", openFile = "Datei öffnen", save = "Speichern",
+    tagline = "Markdown-Editor", newDocument = "Neues Dokument", openFile = "Datei öffnen", save = "Speichern", saveAs = "Speichern unter…",
     documents = "DOKUMENTE", quickElements = "SCHNELLELEMENTE", table = "Tabelle", image = "Bild", link = "Link",
     customLink = "Eigener Link", code = "Code", list = "Liste", quote = "Zitat", settings = "Einstellungen",
     commandSearch = "Suchen oder Befehl ausführen…", preview = "Vorschau", activeSession = "AKTIVE SITZUNG", split = "Geteilt",
@@ -639,7 +640,10 @@ private fun AppContent(
         Modifier.fillMaxSize().background(colors.background).onPreviewKeyEvent { event ->
             if (event.type != KeyEventType.KeyUp) return@onPreviewKeyEvent false
             val shortcut = if (shortcutUsesCommand) event.isMetaPressed else event.isCtrlPressed
-            if (!shortcut || event.isAltPressed || event.isShiftPressed) return@onPreviewKeyEvent false
+            if (!shortcut || event.isAltPressed) return@onPreviewKeyEvent false
+            if (event.isShiftPressed) {
+                return@onPreviewKeyEvent if (event.key == Key.S) { saveFile(false); true } else false
+            }
             when (event.key) {
                 Key.O -> {
                     openFile()
@@ -671,14 +675,8 @@ private fun AppContent(
                         replaceContent(documents.last().content)
                     },
                     onOpen = { fileMessage = null; picker.launch() },
-                    onSave = {
-                        fileMessage = null
-                        saver.launch(
-                            suggestedName = documents.getOrNull(selectedIndex)?.name?.substringBeforeLast('.') ?: ui.untitledTitle,
-                            defaultExtension = "md",
-                            allowedExtensions = setOf("md", "markdown")
-                        )
-                    },
+                    onSave = { saveFile(true) },
+                    onSaveAs = { saveFile(false) },
                     fileMessage = fileMessage,
                     onInsert = insertAtCursor,
                     onImage = { showImageOptions = true },
@@ -697,14 +695,7 @@ private fun AppContent(
                     onSettings = { showSettings = true },
                     onInsert = insertAtCursor,
                     onOpen = { fileMessage = null; picker.launch() },
-                    onSave = {
-                        fileMessage = null
-                        saver.launch(
-                            suggestedName = documents.getOrNull(selectedIndex)?.name?.substringBeforeLast('.') ?: ui.untitledTitle,
-                            defaultExtension = "md",
-                            allowedExtensions = setOf("md", "markdown")
-                        )
-                    },
+                    onSave = { saveFile(true) },
                     wide = wide,
                     previewActive = workspaceMode == WorkspaceMode.Preview,
                     onPreviewToggle = {
@@ -717,14 +708,7 @@ private fun AppContent(
                         ui = ui,
                         mode = workspaceMode,
                         onModeChange = { workspaceMode = it },
-                        onSave = {
-                            fileMessage = null
-                            saver.launch(
-                                suggestedName = documents.getOrNull(selectedIndex)?.name?.substringBeforeLast('.') ?: ui.untitledTitle,
-                                defaultExtension = "md",
-                                allowedExtensions = setOf("md", "markdown")
-                            )
-                        }
+                        onSave = { saveFile(true) }
                     )
                 }
                 DividerLine(colors)
@@ -1098,6 +1082,7 @@ private fun Sidebar(
     onNew: () -> Unit,
     onOpen: () -> Unit,
     onSave: () -> Unit,
+    onSaveAs: () -> Unit,
     fileMessage: String?,
     onInsert: (String) -> Unit,
     onImage: () -> Unit,
@@ -1121,9 +1106,10 @@ private fun Sidebar(
             }
             SidebarPrimaryButton("＋  ${ui.newDocument}", onNew)
             Spacer(Modifier.height(7.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                SidebarUtilityButton(ui.openFile, Modifier.weight(1f), onOpen)
-                SidebarUtilityButton(ui.save, Modifier.weight(1f), onSave)
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                SidebarUtilityButton(ui.openFile, Modifier.fillMaxWidth(), onOpen)
+                SidebarUtilityButton(ui.save, Modifier.fillMaxWidth(), onSave)
+                SidebarUtilityButton(ui.saveAs, Modifier.fillMaxWidth(), onSaveAs)
             }
             Spacer(Modifier.height(22.dp))
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
