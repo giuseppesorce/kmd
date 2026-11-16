@@ -5,7 +5,10 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
@@ -489,6 +492,10 @@ private fun AppContent(
         composition = null
     }
     var editorZoom by remember { mutableFloatStateOf(1f) }
+    val editorScroll = rememberScrollState()
+    val previewScroll = rememberScrollState()
+    var syncScroll by remember { mutableStateOf(true) }
+    SyncedScrollEffect(enabled = syncScroll, first = editorScroll, second = previewScroll)
     var previewZoom by remember { mutableFloatStateOf(1f) }
     var workspaceMode by remember { mutableStateOf(WorkspaceMode.Split) }
     var showSettings by remember { mutableStateOf(false) }
@@ -731,7 +738,7 @@ private fun AppContent(
                         selection = newValue.selection
                         composition = newValue.composition
                         if (textChanged) documents = documents.toMutableList().also { if (selectedIndex in it.indices) it[selectedIndex] = it[selectedIndex].copy(content = newValue.text) }
-                    }, ui, editorZoom, { editorZoom = it }, paneModifier)
+                    }, ui, editorZoom, { editorZoom = it }, editorScroll, paneModifier)
                 }
                 when {
                     wide && workspaceMode == WorkspaceMode.Split -> Row(Modifier.weight(1f).fillMaxWidth()) {
@@ -741,9 +748,9 @@ private fun AppContent(
                             availableWidthPx = splitWidthPx,
                             onDrag = { delta -> splitRatio = (splitRatio + delta).coerceIn(0.2f, 0.8f) }
                         )
-                        PreviewPane(content, ui, previewZoom, { previewZoom = it }, Modifier.weight(1f - splitRatio).fillMaxHeight())
+                        PreviewPane(content, ui, previewZoom, { previewZoom = it }, previewScroll, syncScroll, { syncScroll = !syncScroll }, Modifier.weight(1f - splitRatio).fillMaxHeight())
                     }
-                    workspaceMode == WorkspaceMode.Preview -> PreviewPane(content, ui, previewZoom, { previewZoom = it }, Modifier.weight(1f).fillMaxWidth())
+                    workspaceMode == WorkspaceMode.Preview -> PreviewPane(content, ui, previewZoom, { previewZoom = it }, previewScroll, syncScroll, { syncScroll = !syncScroll }, Modifier.weight(1f).fillMaxWidth())
                     else -> editorPane(Modifier.weight(1f).fillMaxWidth())
                 }
                 if (wide) WorkspaceStatusBar(content, fileMessage, ui)
@@ -1201,6 +1208,7 @@ private fun EditorPane(
     ui: AppStrings,
     zoom: Float,
     onZoomChange: (Float) -> Unit,
+    scrollState: ScrollState,
     modifier: Modifier = Modifier
 ) {
     val density = LocalDensity.current
@@ -1242,7 +1250,7 @@ private fun EditorPane(
                     value = value,
                     onValueChange = onChange,
                     modifier = Modifier.weight(1f).fillMaxHeight()
-                        .verticalScroll(rememberScrollState())
+                        .verticalScroll(scrollState)
                         .onFocusChanged { editorHasFocus = it.isFocused }
                         .pointerInput(zoom, editorHasFocus) {
                             awaitPointerEventScope {
@@ -1363,6 +1371,9 @@ private fun PreviewPane(
     ui: AppStrings,
     zoom: Float,
     onZoomChange: (Float) -> Unit,
+    scrollState: ScrollState,
+    syncScroll: Boolean,
+    onToggleSyncScroll: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val density = LocalDensity.current
@@ -1375,7 +1386,7 @@ private fun PreviewPane(
         ) {
             Text(ui.livePreview, color = colors.accent, fontSize = 9.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 0.7.sp)
             Spacer(Modifier.width(12.dp))
-            Text("●  ${ui.syncedScroll}", color = Color(0xFF51C7A4), fontSize = 9.sp)
+            SyncScrollToggle(ui.syncedScroll, syncScroll, onToggleSyncScroll)
             Spacer(Modifier.weight(1f))
             Text(ui.gfmRender, color = colors.secondary, fontSize = 9.sp)
             Spacer(Modifier.width(10.dp))
@@ -1386,7 +1397,7 @@ private fun PreviewPane(
         DividerLine(colors)
         val documentScale = LocalInterfaceScale.current.coerceAtLeast(0.5f)
         CompositionLocalProvider(LocalDensity provides Density(density.density, density.fontScale / documentScale * zoom)) {
-            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+            Column(Modifier.fillMaxSize().verticalScroll(scrollState)) {
                 Column(Modifier.widthIn(max = 780.dp).fillMaxWidth().padding(horizontal = 32.dp, vertical = 28.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(ui.document, Modifier.clip(RoundedCornerShape(5.dp)).background(colors.selectedDocument).padding(horizontal = 8.dp, vertical = 5.dp), color = colors.accent, fontSize = 9.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 0.4.sp)
@@ -1434,6 +1445,62 @@ private fun unescapeHtmlAttribute(value: String): String = value
     .replace("&lt;", "<")
     .replace("&gt;", ">")
     .replace("&amp;", "&")
+
+@Composable
+private fun SyncScrollToggle(label: String, enabled: Boolean, onToggle: () -> Unit) {
+    val colors = LocalKomdPalette.current
+    val active = Color(0xFF51C7A4)
+    Text(
+        "${if (enabled) "●" else "○"}  $label",
+        Modifier.clip(RoundedCornerShape(6.dp))
+            .background(if (enabled) active.copy(alpha = 0.12f) else Color.Transparent)
+            .toggleable(value = enabled, role = Role.Switch, onValueChange = { onToggle() })
+            .padding(horizontal = 7.dp, vertical = 4.dp),
+        color = if (enabled) active else colors.secondary,
+        fontSize = 9.sp,
+        maxLines = 1
+    )
+}
+
+/**
+ * Mirrors the scroll position between editor and preview as a fraction of each pane's scroll
+ * range. Only the pane the user is actually scrolling drives the other one; while we apply the
+ * mirrored position we ignore the echo it produces, so the two panes never fight.
+ *
+ * Proportional mapping is approximate when one pane has much taller content in a section
+ * (e.g. a big image); a source-line ↔ block anchor map can refine it later.
+ */
+@Composable
+private fun SyncedScrollEffect(enabled: Boolean, first: ScrollState, second: ScrollState) {
+    if (!enabled) return
+    val mirroring = remember { mutableStateOf(false) }
+    LaunchedEffect(first, second) {
+        launch { mirrorScroll(from = first, to = second, mirroring) }
+        launch { mirrorScroll(from = second, to = first, mirroring) }
+        // Align once when sync is (re)enabled, using the editor as the reference.
+        second.scrollTo(scaledScroll(first, second))
+    }
+}
+
+private suspend fun mirrorScroll(from: ScrollState, to: ScrollState, mirroring: MutableState<Boolean>) {
+    snapshotFlow { from.value to from.isScrollInProgress }
+        .collect { (_, inProgress) ->
+            if (!inProgress || mirroring.value) return@collect
+            mirroring.value = true
+            try {
+                to.scrollTo(scaledScroll(from, to))
+            } finally {
+                mirroring.value = false
+            }
+        }
+}
+
+internal fun scaledScroll(fromValue: Int, fromMax: Int, toMax: Int): Int {
+    if (fromMax <= 0 || toMax <= 0) return 0
+    return (fromValue.toLong() * toMax / fromMax).toInt().coerceIn(0, toMax)
+}
+
+private fun scaledScroll(from: ScrollState, to: ScrollState): Int = scaledScroll(from.value, from.maxValue, to.maxValue)
 
 @Composable
 private fun InterfaceScaleControl(scale: Float, onChange: (Float) -> Unit) {
