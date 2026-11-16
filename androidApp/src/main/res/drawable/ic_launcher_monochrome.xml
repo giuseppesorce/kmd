@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- K#M glyph, source: branding/komd-icon-foreground.svg. Scaled to 0.75 to sit inside the 66dp safe zone. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="1024" android:viewportHeight="1024">
+    <group android:pivotX="512" android:pivotY="512" android:scaleX="0.75" android:scaleY="0.75"
+        android:translateX="2">
+        <path android:pathData="M196 342 V682" android:strokeColor="#FFFFFFFF" android:strokeWidth="54"
+            android:strokeLineCap="round" android:strokeLineJoin="round" />
+        <path android:pathData="M336 342 L206 512 L336 682" android:strokeColor="#FFFFFFFF" android:strokeWidth="54"
+            android:strokeLineCap="round" android:strokeLineJoin="round" />
+        <path android:pathData="M682 682 V342 L757 508 L832 342 V682" android:strokeColor="#FFFFFFFF" android:strokeWidth="54"
+            android:strokeLineCap="round" android:strokeLineJoin="round" />
+        <path android:pathData="M496 360 L472 664" android:strokeColor="#FFFFFFFF" android:strokeWidth="54"
+            android:strokeLineCap="round" android:strokeLineJoin="round" />
+        <path android:pathData="M570 360 L546 664" android:strokeColor="#FFFFFFFF" android:strokeWidth="54"
+            android:strokeLineCap="round" android:strokeLineJoin="round" />
+        <path android:pathData="M446 458 H596" android:strokeColor="#FFFFFFFF" android:strokeWidth="54"
+            android:strokeLineCap="round" android:strokeLineJoin="round" />
+        <path android:pathData="M438 566 H588" android:strokeColor="#FFFFFFFF" android:strokeWidth="54"
+            android:strokeLineCap="round" android:strokeLineJoin="round" />
+    </group>
+</vector>
