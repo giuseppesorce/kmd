@@ -135,6 +135,15 @@ internal data class AppStrings(
     val code: String,
     val list: String,
     val quote: String,
+    val formatting: String,
+    val heading: String,
+    val bold: String,
+    val italic: String,
+    val strikethrough: String,
+    val bulletList: String,
+    val numberedList: String,
+    val taskList: String,
+    val formatPlaceholder: String,
     val settings: String,
     val commandSearch: String,
     val preview: String,
@@ -243,6 +252,8 @@ internal val italianStrings = AppStrings(
     tagline = "Editor Markdown", newDocument = "Nuovo documento", openFile = "Apri file", save = "Salva", saveAs = "Salva con nome…",
     documents = "DOCUMENTI", quickElements = "ELEMENTI RAPIDI", table = "Tabella", image = "Immagine", link = "Link",
     customLink = "Custom Link", code = "Codice", list = "Elenco", quote = "Citazione", settings = "Impostazioni",
+    formatting = "FORMATTAZIONE", heading = "Titolo", bold = "Grassetto", italic = "Corsivo", strikethrough = "Barrato",
+    bulletList = "Elenco puntato", numberedList = "Elenco numerato", taskList = "Attività", formatPlaceholder = "testo",
     commandSearch = "Cerca o esegui comando…", preview = "Anteprima", activeSession = "SESSIONE ATTIVA", split = "Diviso",
     editor = "Editor", line = "Riga", sourceMarkdown = "SORGENTE MD", monoFont = "Geist Mono", words = "parole", characters = "caratteri",
     localDraft = "Bozza locale", commonMark = "CommonMark", livePreview = "ANTEPRIMA LIVE", syncedScroll = "Scroll sincronizzato",
@@ -278,6 +289,8 @@ private val englishStrings = AppStrings(
     tagline = "Markdown editor", newDocument = "New document", openFile = "Open file", save = "Save", saveAs = "Save as…",
     documents = "DOCUMENTS", quickElements = "QUICK INSERTS", table = "Table", image = "Image", link = "Link",
     customLink = "Custom link", code = "Code", list = "List", quote = "Quote", settings = "Settings",
+    formatting = "FORMATTING", heading = "Heading", bold = "Bold", italic = "Italic", strikethrough = "Strikethrough",
+    bulletList = "Bulleted list", numberedList = "Numbered list", taskList = "Task list", formatPlaceholder = "text",
     commandSearch = "Search or run a command…", preview = "Preview", activeSession = "ACTIVE SESSION", split = "Split",
     editor = "Editor", line = "Line", sourceMarkdown = "MARKDOWN SOURCE", monoFont = "Geist Mono", words = "words", characters = "characters",
     localDraft = "Local draft", commonMark = "CommonMark", livePreview = "LIVE PREVIEW", syncedScroll = "Synced scrolling",
@@ -313,6 +326,8 @@ private val frenchStrings = AppStrings(
     tagline = "Éditeur Markdown", newDocument = "Nouveau document", openFile = "Ouvrir un fichier", save = "Enregistrer", saveAs = "Enregistrer sous…",
     documents = "DOCUMENTS", quickElements = "INSERTIONS RAPIDES", table = "Tableau", image = "Image", link = "Lien",
     customLink = "Lien personnalisé", code = "Code", list = "Liste", quote = "Citation", settings = "Paramètres",
+    formatting = "MISE EN FORME", heading = "Titre", bold = "Gras", italic = "Italique", strikethrough = "Barré",
+    bulletList = "Liste à puces", numberedList = "Liste numérotée", taskList = "Tâches", formatPlaceholder = "texte",
     commandSearch = "Rechercher ou lancer une commande…", preview = "Aperçu", activeSession = "SESSION ACTIVE", split = "Divisé",
     editor = "Éditeur", line = "Ligne", sourceMarkdown = "SOURCE MARKDOWN", monoFont = "Geist Mono", words = "mots", characters = "caractères",
     localDraft = "Brouillon local", commonMark = "CommonMark", livePreview = "APERÇU EN DIRECT", syncedScroll = "Défilement synchronisé",
@@ -348,6 +363,8 @@ private val spanishStrings = AppStrings(
     tagline = "Editor Markdown", newDocument = "Nuevo documento", openFile = "Abrir archivo", save = "Guardar", saveAs = "Guardar como…",
     documents = "DOCUMENTOS", quickElements = "INSERCIONES RÁPIDAS", table = "Tabla", image = "Imagen", link = "Enlace",
     customLink = "Enlace personalizado", code = "Código", list = "Lista", quote = "Cita", settings = "Ajustes",
+    formatting = "FORMATO", heading = "Título", bold = "Negrita", italic = "Cursiva", strikethrough = "Tachado",
+    bulletList = "Lista con viñetas", numberedList = "Lista numerada", taskList = "Tareas", formatPlaceholder = "texto",
     commandSearch = "Buscar o ejecutar un comando…", preview = "Vista previa", activeSession = "SESIÓN ACTIVA", split = "Dividido",
     editor = "Editor", line = "Línea", sourceMarkdown = "FUENTE MARKDOWN", monoFont = "Geist Mono", words = "palabras", characters = "caracteres",
     localDraft = "Borrador local", commonMark = "CommonMark", livePreview = "VISTA PREVIA EN VIVO", syncedScroll = "Desplazamiento sincronizado",
@@ -383,6 +400,8 @@ private val germanStrings = AppStrings(
     tagline = "Markdown-Editor", newDocument = "Neues Dokument", openFile = "Datei öffnen", save = "Speichern", saveAs = "Speichern unter…",
     documents = "DOKUMENTE", quickElements = "SCHNELLELEMENTE", table = "Tabelle", image = "Bild", link = "Link",
     customLink = "Eigener Link", code = "Code", list = "Liste", quote = "Zitat", settings = "Einstellungen",
+    formatting = "FORMATIERUNG", heading = "Überschrift", bold = "Fett", italic = "Kursiv", strikethrough = "Durchgestrichen",
+    bulletList = "Aufzählung", numberedList = "Nummerierte Liste", taskList = "Aufgaben", formatPlaceholder = "Text",
     commandSearch = "Suchen oder Befehl ausführen…", preview = "Vorschau", activeSession = "AKTIVE SITZUNG", split = "Geteilt",
     editor = "Editor", line = "Zeile", sourceMarkdown = "MARKDOWN-QUELLE", monoFont = "Geist Mono", words = "Wörter", characters = "Zeichen",
     localDraft = "Lokaler Entwurf", commonMark = "CommonMark", livePreview = "LIVE-VORSCHAU", syncedScroll = "Synchrones Scrollen",
@@ -549,6 +568,8 @@ private fun AppContent(
     var showCustomLinkDialog by remember { mutableStateOf(false) }
     var customLinkText by remember { mutableStateOf("") }
     var customLinkUrl by remember { mutableStateOf("") }
+    /** Folder of the current document's file, base for relative image paths (null if unsaved or not a filesystem path). */
+    val documentDirectory: () -> String? = { documents.getOrNull(selectedIndex)?.file?.path?.let(::parentDirectory) }
     val changeLanguage: (UiLanguage) -> Unit = { selectedLanguage ->
         if (selectedLanguage != language) {
             val nextStrings = stringsFor(selectedLanguage)
@@ -608,11 +629,18 @@ private fun AppContent(
             val afterSave = afterSaveAs
             afterSaveAs = null
             if (file != null) scope.launch {
-                val text = latestContent
+                // Image paths are rewritten relative to the new folder (absolute ones too, on the first save).
+                val original = latestContent
+                val text = parentDirectory(file.path)?.let { rebaseImageSources(original, documentDirectory(), it) } ?: original
                 runCatching { file.writeString(text) }
                     .onSuccess {
                         documents = documents.toMutableList().also { list ->
                             if (selectedIndex in list.indices) list[selectedIndex] = list[selectedIndex].copy(name = file.name, content = text, file = file, baseline = text)
+                        }
+                        if (text != original && content == original) {
+                            content = text
+                            selection = TextRange(selection.start.coerceAtMost(text.length), selection.end.coerceAtMost(text.length))
+                            composition = null
                         }
                         fileMessage = ui.saved.replace("{name}", file.name)
                         afterSave?.invoke()
@@ -637,12 +665,23 @@ private fun AppContent(
     val insertLink: (String, String) -> Unit = { label, target ->
         insertAtCursor(markdownLink(label, target))
     }
+    /** Formatting shortcuts (headings, bold, lists...): edit the current line / selection in place. */
+    val applyFormat: (FormatAction) -> Unit = format@{ action ->
+        if (documents.isEmpty()) return@format
+        val result = action.apply(content, selection, ui)
+        content = result.text
+        selection = result.selection
+        composition = null
+        documents = documents.toMutableList().also { list ->
+            if (selectedIndex in list.indices) list[selectedIndex] = list[selectedIndex].copy(content = content)
+        }
+    }
     val imagePicker = rememberFilePickerLauncher(
         type = FileKitType.Image,
         onError = { fileMessage = ui.imageFailure.replace("{error}", it.message ?: ui.unknownError) },
         onResult = { file ->
             if (file != null) {
-                insertImage(ui.image, file.path)
+                insertImage(ui.image, imageSourceForInsert(file.path, documentDirectory()))
                 fileMessage = ui.imageAdded.replace("{name}", file.name)
             }
         }
@@ -797,6 +836,7 @@ private fun AppContent(
                     onSaveAs = { saveFile(false) },
                     fileMessage = fileMessage,
                     onInsert = insertAtCursor,
+                    onFormat = applyFormat,
                     onImage = { showImageOptions = true },
                     onCustomLink = { showCustomLinkDialog = true },
                     onSettings = { showSettings = true },
@@ -811,7 +851,7 @@ private fun AppContent(
                     darkTheme = darkTheme,
                     onToggleTheme = onToggleTheme,
                     onSettings = { showSettings = true },
-                    onInsert = insertAtCursor,
+                    onFormat = applyFormat,
                     onOpen = { fileMessage = null; picker.launch() },
                     onSave = { saveFile(true) },
                     wide = wide,
@@ -851,9 +891,9 @@ private fun AppContent(
                             availableWidthPx = splitWidthPx,
                             onDrag = { delta -> splitRatio = (splitRatio + delta).coerceIn(0.2f, 0.8f) }
                         )
-                        PreviewPane(content, ui, previewZoom, { previewZoom = it }, previewScroll, syncScroll, { syncScroll = !syncScroll }, Modifier.weight(1f - splitRatio).fillMaxHeight())
+                        PreviewPane(content, documentDirectory(), ui, previewZoom, { previewZoom = it }, previewScroll, syncScroll, { syncScroll = !syncScroll }, Modifier.weight(1f - splitRatio).fillMaxHeight())
                     }
-                    workspaceMode == WorkspaceMode.Preview -> PreviewPane(content, ui, previewZoom, { previewZoom = it }, previewScroll, syncScroll, { syncScroll = !syncScroll }, Modifier.weight(1f).fillMaxWidth())
+                    workspaceMode == WorkspaceMode.Preview -> PreviewPane(content, documentDirectory(), ui, previewZoom, { previewZoom = it }, previewScroll, syncScroll, { syncScroll = !syncScroll }, Modifier.weight(1f).fillMaxWidth())
                     else -> editorPane(Modifier.weight(1f).fillMaxWidth())
                 }
                 if (wide) WorkspaceStatusBar(content, fileMessage, ui)
@@ -865,19 +905,13 @@ private fun AppContent(
                 Modifier.align(Alignment.BottomCenter).fillMaxWidth().background(colors.toolbar).horizontalScroll(rememberScrollState()).padding(8.dp),
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                    listOf(ui.table, ui.image, ui.link, ui.customLink, ui.code, ui.list, ui.quote).forEach { label ->
-                        SmallButton(label) {
-                            if (label == ui.image) showImageOptions = true
-                            else if (label == ui.customLink) showCustomLinkDialog = true
-                            else insertAtCursor(when (label) {
-                                ui.table -> "\n| ${ui.column} 1 | ${ui.column} 2 |\n| --- | --- |\n| ${ui.value} | ${ui.value} |\n"
-                                ui.link -> "[${ui.link}](https://)"
-                                ui.code -> "\n```\n ${ui.code}\n```\n"
-                                ui.list -> "\n- ${ui.listItem}\n- ${ui.listItem}\n"
-                                else -> "\n> ${ui.quoteExample}\n"
-                            })
-                        }
-                    }
+                    mobileFormatActions.forEach { FormatChipContent(it, applyFormat, Modifier.padding(horizontal = 3.dp)) }
+                    SmallButton(ui.table) { insertAtCursor("\n| ${ui.column} 1 | ${ui.column} 2 |\n| --- | --- |\n| ${ui.value} | ${ui.value} |\n") }
+                    SmallButton(ui.image) { showImageOptions = true }
+                    SmallButton(ui.link) { applyFormat(FormatAction.Link) }
+                    SmallButton(ui.customLink) { showCustomLinkDialog = true }
+                    SmallButton(ui.code) { insertAtCursor("\n```\n ${ui.code}\n```\n") }
+                    SmallButton(ui.quote) { applyFormat(FormatAction.Quote) }
                 }
             }
         }
@@ -1087,7 +1121,7 @@ private fun AppTopBar(
     darkTheme: Boolean,
     onToggleTheme: () -> Unit,
     onSettings: () -> Unit,
-    onInsert: (String) -> Unit,
+    onFormat: (FormatAction) -> Unit,
     onOpen: () -> Unit,
     onSave: () -> Unit,
     onPreviewToggle: () -> Unit,
@@ -1126,10 +1160,9 @@ private fun AppTopBar(
                 Text("⌘ K", color = colors.secondary, fontSize = 10.sp)
             }
             Spacer(Modifier.weight(1f))
-            SmallButton("B") { onInsert(" **${ui.exampleText}** ") }
-            SmallButton("I") { onInsert(" *${ui.exampleText}* ") }
-            SmallButton("↗") { onInsert(" [${ui.exampleText}](https://) ") }
-            SmallButton("〈〉") { onInsert(" `codice` ") }
+            listOf(FormatAction.Bold, FormatAction.Italic, FormatAction.Link, FormatAction.InlineCode).forEach {
+                FormatChipContent(it, onFormat, Modifier.padding(horizontal = 3.dp))
+            }
             SmallButton(ui.preview) { onPreviewToggle() }
         }
         SmallButton(if (darkTheme) "☼" else "☾") { onToggleTheme() }
@@ -1254,6 +1287,7 @@ private fun Sidebar(
     onSaveAs: () -> Unit,
     fileMessage: String?,
     onInsert: (String) -> Unit,
+    onFormat: (FormatAction) -> Unit,
     onImage: () -> Unit,
     onCustomLink: () -> Unit,
     onSettings: () -> Unit,
@@ -1309,16 +1343,13 @@ private fun Sidebar(
             }
             Spacer(Modifier.height(20.dp))
             DividerLine(colors)
+            SidebarFormatSection(onFormat)
+            Spacer(Modifier.height(10.dp))
+            DividerLine(colors)
             Text(ui.quickElements, Modifier.padding(top = 17.dp, bottom = 8.dp), color = colors.secondary, fontSize = 10.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 0.8.sp)
-            listOf(
-                "▦   ${ui.table}" to "\n| ${ui.column} 1 | ${ui.column} 2 |\n| --- | --- |\n| ${ui.value} | ${ui.value} |\n",
-                "↗   ${ui.link}" to "[${ui.link}](https://)",
-                "〈〉   ${ui.code}" to "\n```\n ${ui.code}\n```\n",
-                "☷   ${ui.list}" to "\n- ${ui.listItem}\n- ${ui.listItem}\n",
-                "❞   ${ui.quote}" to "\n> ${ui.quoteExample}\n"
-            ).forEach { (label, snippet) ->
-                SidebarButton(label) { onInsert(snippet) }
-            }
+            SidebarButton("▦   ${ui.table}") { onInsert("\n| ${ui.column} 1 | ${ui.column} 2 |\n| --- | --- |\n| ${ui.value} | ${ui.value} |\n") }
+            SidebarButton("↗   ${ui.link}") { onFormat(FormatAction.Link) }
+            SidebarButton("〈〉   ${ui.code}") { onInsert("\n```\n ${ui.code}\n```\n") }
             SidebarButton("▧   ${ui.image}") { onImage() }
             SidebarButton("↗   ${ui.customLink}") { onCustomLink() }
         }
@@ -1523,6 +1554,7 @@ private fun markdownLink(label: String, target: String): String {
 @Composable
 private fun PreviewPane(
     markdown: String,
+    documentDirectory: String?,
     ui: AppStrings,
     zoom: Float,
     onZoomChange: (Float) -> Unit,
@@ -1560,7 +1592,9 @@ private fun PreviewPane(
                         Text(ui.updatedNow, color = colors.secondary, fontSize = 9.sp)
                     }
                     Spacer(Modifier.height(22.dp))
-                    MarkdownDocument(markdown, ui.imageUnsupported)
+                    CompositionLocalProvider(LocalDocumentDirectory provides documentDirectory) {
+                        MarkdownDocument(markdown, ui.imageUnsupported)
+                    }
                 }
             }
         }
