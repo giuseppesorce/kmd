@@ -529,6 +529,8 @@ private fun AppContent(
     var showCustomLinkDialog by remember { mutableStateOf(false) }
     var customLinkText by remember { mutableStateOf("") }
     var customLinkUrl by remember { mutableStateOf("") }
+    /** Folder of the current document's file, base for relative image paths (null if unsaved or not a filesystem path). */
+    val documentDirectory: () -> String? = { documents.getOrNull(selectedIndex)?.file?.path?.let(::parentDirectory) }
     val changeLanguage: (UiLanguage) -> Unit = { selectedLanguage ->
         if (selectedLanguage != language) {
             val nextStrings = stringsFor(selectedLanguage)
@@ -556,8 +558,6 @@ private fun AppContent(
     }
     val scope = rememberCoroutineScope()
     val latestContent by rememberUpdatedState(content)
-    /** Folder of the current document's file, base for relative image paths (null if unsaved or not a filesystem path). */
-    val documentDirectory: () -> String? = { documents.getOrNull(selectedIndex)?.file?.path?.let(::parentDirectory) }
     val picker = rememberFilePickerLauncher(
         type = FileKitType.File(extensions = listOf("md", "markdown")),
         onError = { fileMessage = ui.openFailure.replace("{error}", it.message ?: ui.unknownError) },
