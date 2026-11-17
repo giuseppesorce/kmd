@@ -41,3 +41,27 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
       - name: Link iOS simulator framework
         run: ./gradlew :shared:linkDebugFrameworkIosSimulatorArm64 --stacktrace
+
+  macos-dmg:
+    name: macOS DMG
+    runs-on: macos-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Package DMG
+        run: ./gradlew :desktopApp:packageDmg --stacktrace
+      - name: Check Markdown document types in Info.plist
+        run: |
+          # The app's own plist, not the one of the bundled JVM runtime under Contents/runtime.
+          plist=desktopApp/build/compose/binaries/main/app/KoMD.app/Contents/Info.plist
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleDocumentTypes:0:LSItemContentTypes:0' "$plist" | grep -x net.daringfireball.markdown
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KoMD-dmg
+          path: desktopApp/build/compose/binaries/main/dmg/*.dmg
+          if-no-files-found: error
