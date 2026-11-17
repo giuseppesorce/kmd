@@ -598,25 +598,43 @@ private fun AppContent(
     }
     val scope = rememberCoroutineScope()
     val latestContent by rememberUpdatedState(content)
+    suspend fun openDocument(file: PlatformFile) {
+        // A file that is already open in a tab is focused instead of being opened twice.
+        val alreadyOpen = documents.indexOfFirst { it.file?.path == file.path }
+        if (alreadyOpen >= 0) {
+            if (alreadyOpen != selectedIndex) {
+                documents = documents.toMutableList().also { list ->
+                    if (selectedIndex in list.indices) list[selectedIndex] = list[selectedIndex].copy(content = content)
+                }
+                selectedIndex = alreadyOpen
+                replaceContent(documents[alreadyOpen].content)
+            }
+            fileMessage = ui.opened.replace("{name}", file.name)
+            return
+        }
+        runCatching { file.readString() }
+            .onSuccess { loaded ->
+                documents = documents.toMutableList().also { list ->
+                    if (selectedIndex in list.indices) list[selectedIndex] = list[selectedIndex].copy(content = content)
+                    list += Document(file.name, loaded, file)
+                }
+                selectedIndex = documents.lastIndex
+                replaceContent(loaded)
+                fileMessage = ui.opened.replace("{name}", file.name)
+            }
+            .onFailure { fileMessage = ui.readFailure.replace("{error}", it.message ?: ui.unknownError) }
+    }
     val picker = rememberFilePickerLauncher(
         type = FileKitType.File(extensions = listOf("md", "markdown")),
         onError = { fileMessage = ui.openFailure.replace("{error}", it.message ?: ui.unknownError) },
-        onResult = { file ->
-            if (file != null) scope.launch {
-                runCatching { file.readString() }
-                    .onSuccess { loaded ->
-                        documents = documents.toMutableList().also { list ->
-                            if (selectedIndex in list.indices) list[selectedIndex] = list[selectedIndex].copy(content = content)
-                            list += Document(file.name, loaded, file)
-                        }
-                        selectedIndex = documents.lastIndex
-                        replaceContent(loaded)
-                        fileMessage = ui.opened.replace("{name}", file.name)
-                    }
-                    .onFailure { fileMessage = ui.readFailure.replace("{error}", it.message ?: ui.unknownError) }
-            }
-        }
+        onResult = { file -> if (file != null) scope.launch { openDocument(file) } }
     )
+    // Files handed over by the OS (Finder "Open With…", double click, CLI args): same path as the picker.
+    // rememberUpdatedState so the long-lived collector always uses the current strings/language.
+    val openExternal by rememberUpdatedState<suspend (PlatformFile) -> Unit> { openDocument(it) }
+    LaunchedEffect(Unit) {
+        ExternalOpenRequests.requests.collect { file -> openExternal(file) }
+    }
     // Action to run once the "Save as" dialog has written the file (e.g. close the document after "Save").
     var afterSaveAs by remember { mutableStateOf<(() -> Unit)?>(null) }
     val saver = rememberFileSaverLauncher(
