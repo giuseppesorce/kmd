@@ -1,16 +1,22 @@
 package komd
 
+import androidx.compose.runtime.remember
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
 import io.github.vinceglb.filekit.PlatformFile
 import komd.shared.App
+import komd.shared.AppCommands
 import komd.shared.ExternalOpenRequests
 import java.awt.Desktop
 import java.io.File
 
 fun main(args: Array<String>) {
+    // Show the Compose MenuBar in the macOS system menu bar instead of inside the window.
+    // Set before anything touches AWT (Desktop.getDesktop() below).
+    System.setProperty("apple.laf.useScreenMenuBar", "true")
+
     // Must be registered before the UI starts: on macOS the "open document" Apple Event of a cold
     // launch (Finder "Open With…", double click) is delivered right after startup and is lost if
     // no handler is installed yet. Later events (app already running) go through the same handler.
@@ -19,12 +25,15 @@ fun main(args: Array<String>) {
     args.forEach(::requestOpen)
 
     application {
+        val commands = remember { AppCommands() }
+        InstallQuitHandler(commands)
         Window(
-            onCloseRequest = ::exitApplication,
+            onCloseRequest = commands::requestExit,
             title = "KoMD",
             state = rememberWindowState(width = 1400.dp, height = 900.dp)
         ) {
-            App()
+            KomdMenuBar(commands)
+            App(commands = commands, onExit = ::exitApplication)
         }
     }
 }
