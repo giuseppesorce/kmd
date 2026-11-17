@@ -28,6 +28,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -107,6 +108,9 @@ private val bulletPattern = Regex("""^[-*+][ \t]+(.+)$""")
 private val taskPattern = Regex("""^\[([ xX])\]\s*(.*)$""")
 private val orderedPattern = Regex("""^(\d+)\.[ \t]+(.+)$""")
 private val thematicPattern = Regex("""^(?:(?:\*[ \t]*){3,}|(?:-[ \t]*){3,}|(?:_[ \t]*){3,})$""")
+
+/** Folder of the previewed document: relative image sources are resolved against it. */
+internal val LocalDocumentDirectory = staticCompositionLocalOf<String?> { null }
 
 @Composable
 internal fun MarkdownDocument(markdown: String, imageUnsupported: String) {
@@ -409,11 +413,7 @@ private fun TableRow(
 @Composable
 private fun MarkdownImage(image: PreviewImage, imageUnsupported: String) {
     val colors = LocalKomdPalette.current
-    val model = when {
-        image.source.startsWith("/") -> fileUri(image.source)
-        image.source.startsWith("file://") || image.source.startsWith("https://") || image.source.startsWith("http://") -> image.source
-        else -> null
-    }
+    val model = resolveImageModel(image.source, LocalDocumentDirectory.current)
     if (model == null) {
         Text(
             imageUnsupported.replace("{source}", image.source),

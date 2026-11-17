@@ -556,6 +556,8 @@ private fun AppContent(
     }
     val scope = rememberCoroutineScope()
     val latestContent by rememberUpdatedState(content)
+    /** Folder of the current document's file, base for relative image paths (null if unsaved or not a filesystem path). */
+    val documentDirectory: () -> String? = { documents.getOrNull(selectedIndex)?.file?.path?.let(::parentDirectory) }
     val picker = rememberFilePickerLauncher(
         type = FileKitType.File(extensions = listOf("md", "markdown")),
         onError = { fileMessage = ui.openFailure.replace("{error}", it.message ?: ui.unknownError) },
@@ -580,10 +582,18 @@ private fun AppContent(
         onError = { fileMessage = ui.saveFailure.replace("{error}", it.message ?: ui.unknownError) },
         onResult = { file ->
             if (file != null) scope.launch {
-                runCatching { file.writeString(latestContent) }
+                // Image paths are rewritten relative to the new folder (absolute ones too, on the first save).
+                val original = latestContent
+                val text = parentDirectory(file.path)?.let { rebaseImageSources(original, documentDirectory(), it) } ?: original
+                runCatching { file.writeString(text) }
                     .onSuccess {
                         documents = documents.toMutableList().also { list ->
-                            if (selectedIndex in list.indices) list[selectedIndex] = list[selectedIndex].copy(name = file.name, content = latestContent, file = file)
+                            if (selectedIndex in list.indices) list[selectedIndex] = list[selectedIndex].copy(name = file.name, content = text, file = file)
+                        }
+                        if (text != original && content == original) {
+                            content = text
+                            selection = TextRange(selection.start.coerceAtMost(text.length), selection.end.coerceAtMost(text.length))
+                            composition = null
                         }
                         fileMessage = ui.saved.replace("{name}", file.name)
                     }
@@ -622,7 +632,7 @@ private fun AppContent(
         onError = { fileMessage = ui.imageFailure.replace("{error}", it.message ?: ui.unknownError) },
         onResult = { file ->
             if (file != null) {
-                insertImage(ui.image, file.path)
+                insertImage(ui.image, imageSourceForInsert(file.path, documentDirectory()))
                 fileMessage = ui.imageAdded.replace("{name}", file.name)
             }
         }
@@ -763,9 +773,9 @@ private fun AppContent(
                             availableWidthPx = splitWidthPx,
                             onDrag = { delta -> splitRatio = (splitRatio + delta).coerceIn(0.2f, 0.8f) }
                         )
-                        PreviewPane(content, ui, previewZoom, { previewZoom = it }, previewScroll, syncScroll, { syncScroll = !syncScroll }, Modifier.weight(1f - splitRatio).fillMaxHeight())
+                        PreviewPane(content, documentDirectory(), ui, previewZoom, { previewZoom = it }, previewScroll, syncScroll, { syncScroll = !syncScroll }, Modifier.weight(1f - splitRatio).fillMaxHeight())
                     }
-                    workspaceMode == WorkspaceMode.Preview -> PreviewPane(content, ui, previewZoom, { previewZoom = it }, previewScroll, syncScroll, { syncScroll = !syncScroll }, Modifier.weight(1f).fillMaxWidth())
+                    workspaceMode == WorkspaceMode.Preview -> PreviewPane(content, documentDirectory(), ui, previewZoom, { previewZoom = it }, previewScroll, syncScroll, { syncScroll = !syncScroll }, Modifier.weight(1f).fillMaxWidth())
                     else -> editorPane(Modifier.weight(1f).fillMaxWidth())
                 }
                 if (wide) WorkspaceStatusBar(content, fileMessage, ui)
@@ -1376,6 +1386,7 @@ private fun markdownLink(label: String, target: String): String {
 @Composable
 private fun PreviewPane(
     markdown: String,
+    documentDirectory: String?,
     ui: AppStrings,
     zoom: Float,
     onZoomChange: (Float) -> Unit,
@@ -1413,7 +1424,9 @@ private fun PreviewPane(
                         Text(ui.updatedNow, color = colors.secondary, fontSize = 9.sp)
                     }
                     Spacer(Modifier.height(22.dp))
-                    MarkdownDocument(markdown, ui.imageUnsupported)
+                    CompositionLocalProvider(LocalDocumentDirectory provides documentDirectory) {
+                        MarkdownDocument(markdown, ui.imageUnsupported)
+                    }
                 }
             }
         }
