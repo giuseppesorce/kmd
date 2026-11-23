@@ -84,6 +84,13 @@ internal fun resolveImageModel(source: String, documentDir: String?): String? = 
 }
 
 /**
+ * Absolute filesystem path (`/a/b.png`, `C:/a/b.png`) of a local image source — relative to
+ * [documentDir], absolute, or file:// — or null for remote, data:, content:// and unresolvable sources.
+ */
+internal fun localImageFilePath(source: String, documentDir: String?): String? =
+    localImagePath(source, documentDir)?.render()
+
+/**
  * Rewrites the local image sources of [markdown] (both `<img src>` and `![](…)`) for a document
  * that moves from [fromDir] (null: never saved) to [toDir]: relative when close enough, otherwise
  * absolute file:// URIs. Fenced code blocks are left alone.

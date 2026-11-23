@@ -246,6 +246,11 @@ internal data class AppStrings(
     val exitWithoutSaving: String,
     val noDocuments: String,
     val noDocumentsHint: String,
+    val exportHtml: String,
+    val exported: String,
+    val exportedWithImages: String,
+    val exportImagesSkipped: String,
+    val exportFailure: String,
 )
 
 internal val italianStrings = AppStrings(
@@ -282,7 +287,9 @@ internal val italianStrings = AppStrings(
     menuFile = "File", closeDocument = "Chiudi", unsavedTitle = "Modifiche non salvate",
     unsavedMessage = "Vuoi salvare le modifiche a \"{name}\" prima di chiuderlo?", dontSave = "Non salvare",
     exitUnsavedMessage = "Documenti con modifiche non salvate: {count}. Se esci andranno perse.", exitWithoutSaving = "Esci senza salvare",
-    noDocuments = "Nessun documento aperto", noDocumentsHint = "Crea un nuovo documento o aprine uno dal disco."
+    noDocuments = "Nessun documento aperto", noDocumentsHint = "Crea un nuovo documento o aprine uno dal disco.",
+    exportHtml = "Esporta HTML…", exported = "Esportato {name}", exportedWithImages = "Esportato {name} con {count} immagini nella cartella images",
+    exportImagesSkipped = "Esportato {name}, ma {count} immagini non sono state copiate", exportFailure = "Impossibile esportare: {error}"
 )
 
 private val englishStrings = AppStrings(
@@ -319,7 +326,9 @@ private val englishStrings = AppStrings(
     menuFile = "File", closeDocument = "Close", unsavedTitle = "Unsaved changes",
     unsavedMessage = "Do you want to save the changes to \"{name}\" before closing it?", dontSave = "Don't save",
     exitUnsavedMessage = "Documents with unsaved changes: {count}. They will be lost if you quit.", exitWithoutSaving = "Quit without saving",
-    noDocuments = "No open documents", noDocumentsHint = "Create a new document or open one from disk."
+    noDocuments = "No open documents", noDocumentsHint = "Create a new document or open one from disk.",
+    exportHtml = "Export HTML…", exported = "Exported {name}", exportedWithImages = "Exported {name} with {count} images in the images folder",
+    exportImagesSkipped = "Exported {name}, but {count} images could not be copied", exportFailure = "Could not export: {error}"
 )
 
 private val frenchStrings = AppStrings(
@@ -356,7 +365,9 @@ private val frenchStrings = AppStrings(
     menuFile = "Fichier", closeDocument = "Fermer", unsavedTitle = "Modifications non enregistrées",
     unsavedMessage = "Voulez-vous enregistrer les modifications de « {name} » avant de le fermer ?", dontSave = "Ne pas enregistrer",
     exitUnsavedMessage = "Documents avec des modifications non enregistrées : {count}. Elles seront perdues si vous quittez.", exitWithoutSaving = "Quitter sans enregistrer",
-    noDocuments = "Aucun document ouvert", noDocumentsHint = "Créez un nouveau document ou ouvrez-en un depuis le disque."
+    noDocuments = "Aucun document ouvert", noDocumentsHint = "Créez un nouveau document ou ouvrez-en un depuis le disque.",
+    exportHtml = "Exporter en HTML…", exported = "{name} exporté", exportedWithImages = "{name} exporté avec {count} images dans le dossier images",
+    exportImagesSkipped = "{name} exporté, mais {count} images n’ont pas pu être copiées", exportFailure = "Impossible d’exporter : {error}"
 )
 
 private val spanishStrings = AppStrings(
@@ -393,7 +404,9 @@ private val spanishStrings = AppStrings(
     menuFile = "Archivo", closeDocument = "Cerrar", unsavedTitle = "Cambios sin guardar",
     unsavedMessage = "¿Quieres guardar los cambios en «{name}» antes de cerrarlo?", dontSave = "No guardar",
     exitUnsavedMessage = "Documentos con cambios sin guardar: {count}. Se perderán si sales.", exitWithoutSaving = "Salir sin guardar",
-    noDocuments = "No hay documentos abiertos", noDocumentsHint = "Crea un documento nuevo o abre uno desde el disco."
+    noDocuments = "No hay documentos abiertos", noDocumentsHint = "Crea un documento nuevo o abre uno desde el disco.",
+    exportHtml = "Exportar HTML…", exported = "Exportado {name}", exportedWithImages = "Exportado {name} con {count} imágenes en la carpeta images",
+    exportImagesSkipped = "Exportado {name}, pero no se pudieron copiar {count} imágenes", exportFailure = "No se pudo exportar: {error}"
 )
 
 private val germanStrings = AppStrings(
@@ -430,7 +443,9 @@ private val germanStrings = AppStrings(
     menuFile = "Datei", closeDocument = "Schließen", unsavedTitle = "Nicht gespeicherte Änderungen",
     unsavedMessage = "Möchtest du die Änderungen an „{name}“ vor dem Schließen speichern?", dontSave = "Nicht speichern",
     exitUnsavedMessage = "Dokumente mit nicht gespeicherten Änderungen: {count}. Sie gehen beim Beenden verloren.", exitWithoutSaving = "Ohne Speichern beenden",
-    noDocuments = "Keine geöffneten Dokumente", noDocumentsHint = "Erstelle ein neues Dokument oder öffne eines von der Festplatte."
+    noDocuments = "Keine geöffneten Dokumente", noDocumentsHint = "Erstelle ein neues Dokument oder öffne eines von der Festplatte.",
+    exportHtml = "Als HTML exportieren…", exported = "{name} exportiert", exportedWithImages = "{name} mit {count} Bildern im Ordner images exportiert",
+    exportImagesSkipped = "{name} exportiert, aber {count} Bilder konnten nicht kopiert werden", exportFailure = "Export fehlgeschlagen: {error}"
 )
 
 private fun stringsFor(language: UiLanguage): AppStrings = when (language) {
@@ -749,6 +764,38 @@ private fun AppContent(
         }
     }
     val saveFile: (Boolean) -> Unit = { overwrite -> saveDocument(overwrite, null) }
+
+    // --- Export HTML: page rendered when the dialog opens, written (plus images/) on its result ---
+    var pendingExport by remember { mutableStateOf<HtmlExport?>(null) }
+    val htmlSaver = rememberFileSaverLauncher(
+        dialogSettings = FileKitDialogSettings.createDefault(),
+        onError = {
+            pendingExport = null
+            fileMessage = ui.exportFailure.replace("{error}", it.message ?: ui.unknownError)
+        },
+        onResult = { file ->
+            val export = pendingExport
+            pendingExport = null
+            if (file != null && export != null) scope.launch {
+                runCatching { writeHtmlExport(file, export) }
+                    .onSuccess { result ->
+                        fileMessage = when {
+                            result.skippedImages > 0 -> ui.exportImagesSkipped.replace("{count}", "${result.skippedImages}")
+                            result.copiedImages > 0 -> ui.exportedWithImages.replace("{count}", "${result.copiedImages}")
+                            else -> ui.exported
+                        }.replace("{name}", file.name)
+                    }
+                    .onFailure { fileMessage = ui.exportFailure.replace("{error}", it.message ?: ui.unknownError) }
+            }
+        }
+    )
+    val exportHtml: () -> Unit = export@{
+        val document = documents.getOrNull(selectedIndex) ?: return@export
+        val title = document.name.substringBeforeLast('.').ifBlank { ui.untitledTitle }
+        fileMessage = null
+        pendingExport = buildHtmlExport(latestContent, title, documentDirectory())
+        htmlSaver.launch(suggestedName = title, defaultExtension = "html", allowedExtensions = setOf("html", "htm"))
+    }
     val newDocument = {
         documents = documents.toMutableList().also { list ->
             if (selectedIndex in list.indices) list[selectedIndex] = list[selectedIndex].copy(content = content)
@@ -804,6 +851,7 @@ private fun AppContent(
                 open = openFile,
                 save = { saveFile(true) },
                 saveAs = { saveFile(false) },
+                exportHtml = exportHtml,
                 close = closeCurrent,
                 requestExit = requestExit,
             )
@@ -852,6 +900,7 @@ private fun AppContent(
                     onOpen = { fileMessage = null; picker.launch() },
                     onSave = { saveFile(true) },
                     onSaveAs = { saveFile(false) },
+                    onExportHtml = exportHtml,
                     fileMessage = fileMessage,
                     onInsert = insertAtCursor,
                     onFormat = applyFormat,
@@ -872,6 +921,7 @@ private fun AppContent(
                     onFormat = applyFormat,
                     onOpen = { fileMessage = null; picker.launch() },
                     onSave = { saveFile(true) },
+                    onExportHtml = exportHtml,
                     wide = wide,
                     previewActive = workspaceMode == WorkspaceMode.Preview,
                     onPreviewToggle = {
@@ -1142,6 +1192,7 @@ private fun AppTopBar(
     onFormat: (FormatAction) -> Unit,
     onOpen: () -> Unit,
     onSave: () -> Unit,
+    onExportHtml: () -> Unit,
     onPreviewToggle: () -> Unit,
     previewActive: Boolean,
     wide: Boolean
@@ -1157,6 +1208,7 @@ private fun AppTopBar(
                 Spacer(Modifier.width(14.dp))
                 SmallButton("↓") { onOpen() }
                 SmallButton("↥") { onSave() }
+                SmallButton("HTML") { onExportHtml() }
                 SmallButton(if (previewActive) ui.editor else ui.preview) { onPreviewToggle() }
             } else {
                 Box(Modifier.size(7.dp).clip(RoundedCornerShape(50)).background(Color(0xFF41C9A0)))
@@ -1303,6 +1355,7 @@ private fun Sidebar(
     onOpen: () -> Unit,
     onSave: () -> Unit,
     onSaveAs: () -> Unit,
+    onExportHtml: () -> Unit,
     fileMessage: String?,
     onInsert: (String) -> Unit,
     onFormat: (FormatAction) -> Unit,
@@ -1331,6 +1384,7 @@ private fun Sidebar(
                 SidebarUtilityButton(ui.openFile, Modifier.fillMaxWidth(), onOpen)
                 SidebarUtilityButton(ui.save, Modifier.fillMaxWidth(), onSave)
                 SidebarUtilityButton(ui.saveAs, Modifier.fillMaxWidth(), onSaveAs)
+                SidebarUtilityButton(ui.exportHtml, Modifier.fillMaxWidth(), onExportHtml)
             }
             Spacer(Modifier.height(22.dp))
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {

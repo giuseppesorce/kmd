@@ -30,6 +30,8 @@ fun FrameWindowScope.KomdMenuBar(commands: AppCommands) {
             Item(labels.close, shortcut = shortcut(Key.W), onClick = commands::close)
             Item(labels.save, shortcut = shortcut(Key.S), onClick = commands::save)
             Item(labels.saveAs, shortcut = shortcut(Key.S, shift = true), onClick = commands::saveAs)
+            Separator()
+            Item(labels.exportHtml, shortcut = shortcut(Key.E, shift = true), onClick = commands::exportHtml)
         }
     }
 }

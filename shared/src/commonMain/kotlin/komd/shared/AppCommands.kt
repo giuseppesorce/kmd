@@ -25,6 +25,9 @@ class AppCommands {
     fun save() { target?.save?.invoke() }
     fun saveAs() { target?.saveAs?.invoke() }
 
+    /** Exports the current document as HTML (plus an `images/` folder when it has local images). */
+    fun exportHtml() { target?.exportHtml?.invoke() }
+
     /** Closes the current document, or asks to exit when no document is open. */
     fun close() { target?.close?.invoke() }
 
@@ -36,6 +39,7 @@ class AppCommands {
         val open: () -> Unit,
         val save: () -> Unit,
         val saveAs: () -> Unit,
+        val exportHtml: () -> Unit,
         val close: () -> Unit,
         val requestExit: () -> Unit,
     )
@@ -48,6 +52,7 @@ data class MenuLabels(
     val close: String,
     val save: String,
     val saveAs: String,
+    val exportHtml: String,
 ) {
     internal companion object {
         fun fromStrings(strings: AppStrings) = MenuLabels(
@@ -57,6 +62,7 @@ data class MenuLabels(
             close = strings.closeDocument,
             save = strings.save,
             saveAs = strings.saveAs,
+            exportHtml = strings.exportHtml,
         )
     }
 }

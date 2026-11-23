@@ -62,7 +62,7 @@ import coil3.compose.AsyncImage
 import androidx.compose.ui.graphics.FilterQuality
 import kotlinx.coroutines.delay
 
-private sealed interface MdInline {
+internal sealed interface MdInline {
     data class Text(val value: String) : MdInline
     data class Code(val value: String) : MdInline
     data class Bold(val children: List<MdInline>) : MdInline
@@ -73,9 +73,9 @@ private sealed interface MdInline {
     data class Styled(val children: List<MdInline>, val look: InlineLook) : MdInline
 }
 
-private enum class InlineBaseline { None, Sup, Sub }
+internal enum class InlineBaseline { None, Sup, Sub }
 
-private data class InlineLook(
+internal data class InlineLook(
     val color: Color? = null,
     val background: Color? = null,
     val fontWeight: FontWeight? = null,
@@ -87,7 +87,7 @@ private data class InlineLook(
     val pad: Boolean = false,
 )
 
-private sealed interface MdBlock {
+internal sealed interface MdBlock {
     data class Heading(val level: Int, val inlines: List<MdInline>) : MdBlock
     data class Paragraph(val inlines: List<MdInline>) : MdBlock
     data class Quote(val blocks: List<MdBlock>) : MdBlock
@@ -99,9 +99,9 @@ private sealed interface MdBlock {
     data object Rule : MdBlock
 }
 
-private enum class MdAlign { Left, Center, Right }
+internal enum class MdAlign { Left, Center, Right }
 
-private data class BulletItem(val checked: Boolean?, val inlines: List<MdInline>)
+internal data class BulletItem(val checked: Boolean?, val inlines: List<MdInline>)
 
 private val headingPattern = Regex("""^(#{1,6})[ \t]+(.+)$""")
 private val bulletPattern = Regex("""^[-*+][ \t]+(.+)$""")
@@ -602,7 +602,7 @@ private fun stripOneQuoteMarker(line: String): String {
     return if (rest.startsWith(" ")) rest.substring(1) else rest
 }
 
-private fun parseMarkdown(markdown: String): List<MdBlock> {
+internal fun parseMarkdown(markdown: String): List<MdBlock> {
     val lines = markdown.replace("\r\n", "\n").replace('\r', '\n').lines()
     val blocks = mutableListOf<MdBlock>()
     var index = 0
