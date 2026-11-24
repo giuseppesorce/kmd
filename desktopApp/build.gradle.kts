@@ -77,9 +77,18 @@ compose.desktop {
     application {
         mainClass = "komd.MainKt"
         nativeDistributions {
-            targetFormats(org.jetbrains.compose.desktop.application.dsl.TargetFormat.Dmg)
+            targetFormats(
+                org.jetbrains.compose.desktop.application.dsl.TargetFormat.Dmg,
+                org.jetbrains.compose.desktop.application.dsl.TargetFormat.Msi,
+                org.jetbrains.compose.desktop.application.dsl.TargetFormat.Deb,
+            )
             packageName = "KoMD"
             packageVersion = "1.0.0"
+            description = "Markdown editor"
+            vendor = "Giuseppe Sorce"
+            copyright = "© 2026 Giuseppe Sorce"
+            // java.net.http is needed by ktor-client-java and is not detected by suggestRuntimeModules.
+            modules("java.instrument", "java.net.http", "jdk.crypto.ec", "jdk.security.auth", "jdk.unsupported")
             macOS {
                 iconFile.set(project.file("src/main/resources/KoMD.icns"))
                 bundleID = "komd.desktop"
@@ -91,9 +100,17 @@ compose.desktop {
             }
             windows {
                 iconFile.set(project.file("src/main/resources/KoMD.ico"))
+                menuGroup = "KoMD"
+                shortcut = true
+                dirChooser = true
+                // Fixed upgrade code: lets new MSI versions replace old ones. Never change it.
+                upgradeUuid = "6f1b2c0e-3d7a-4b5e-9a41-2c8d9e7f4a10"
             }
             linux {
                 iconFile.set(project.file("src/main/resources/KoMD.png"))
+                packageName = "komd"
+                menuGroup = "Office"
+                shortcut = true
             }
         }
     }
