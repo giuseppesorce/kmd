@@ -43,6 +43,9 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -917,15 +920,19 @@ private fun AppContent(
             // The match becomes the editor selection, so typing replaces it like in any editor.
             selection = TextRange(range.first, range.last + 1)
             composition = null
-            // The preview-only mode has no editor: go back to the split view to show the hit.
-            if (workspaceMode == WorkspaceMode.Preview) workspaceMode = WorkspaceMode.Split
             revealRequests++
         }
     }
+    val searchColors = colors.accent.copy(alpha = 0.18f) to colors.accent.copy(alpha = 0.5f)
+    val previewHitAnchor = remember { HitAnchor() }
+    // The preview scrolls to the hit itself when the editor is hidden or does not drive it via synced scroll.
+    val previewSearch = if (searchOpen && searchedQuery.isNotEmpty()) {
+        PreviewSearch(searchedQuery, shownMatch, searchColors.first, searchColors.second, previewHitAnchor)
+    } else null
     // Scrolls the editor so the current match sits in the upper third of the viewport.
-    // Waits one frame so a mode switch has laid out the editor first.
+    // Waits one frame so the new selection/highlight is laid out first.
     LaunchedEffect(revealRequests) {
-        if (revealRequests == 0) return@LaunchedEffect
+        if (revealRequests == 0 || workspaceMode == WorkspaceMode.Preview) return@LaunchedEffect
         withFrameNanos { }
         val range = searchMatches.getOrNull(currentMatch) ?: return@LaunchedEffect
         val layout = editorLayout ?: return@LaunchedEffect
@@ -1069,8 +1076,8 @@ private fun AppContent(
                         composition = newValue.composition
                         if (textChanged) documents = documents.toMutableList().also { if (selectedIndex in it.indices) it[selectedIndex] = it[selectedIndex].copy(content = newValue.text) }
                     }, ui, editorZoom, { editorZoom = it }, editorScroll, paneModifier,
-                        highlight = if (searchOpen && shownMatch >= 0) {
-                            SearchHighlightTransformation(listOf(searchMatches[shownMatch]), 0, colors.accent.copy(alpha = 0.18f), colors.accent.copy(alpha = 0.45f))
+                        highlight = if (previewSearch != null) {
+                            SearchHighlightTransformation(searchMatches, shownMatch, searchColors.first, searchColors.second)
                         } else VisualTransformation.None,
                         onTextLayout = { editorLayout = it })
                 }
@@ -1091,9 +1098,11 @@ private fun AppContent(
                             availableWidthPx = splitWidthPx,
                             onDrag = { delta -> splitRatio = (splitRatio + delta).coerceIn(0.2f, 0.8f) }
                         )
-                        PreviewPane(content, documentDirectory(), ui, previewZoom, { previewZoom = it }, previewScroll, syncScroll, { syncScroll = !syncScroll }, toggleTask, Modifier.weight(1f - splitRatio).fillMaxHeight())
+                        PreviewPane(content, documentDirectory(), ui, previewZoom, { previewZoom = it }, previewScroll, syncScroll, { syncScroll = !syncScroll }, toggleTask, Modifier.weight(1f - splitRatio).fillMaxHeight(),
+                            previewSearch, revealRequests.takeIf { !syncScroll } ?: 0)
                     }
-                    workspaceMode == WorkspaceMode.Preview -> PreviewPane(content, documentDirectory(), ui, previewZoom, { previewZoom = it }, previewScroll, syncScroll, { syncScroll = !syncScroll }, toggleTask, Modifier.weight(1f).fillMaxWidth())
+                    workspaceMode == WorkspaceMode.Preview -> PreviewPane(content, documentDirectory(), ui, previewZoom, { previewZoom = it }, previewScroll, syncScroll, { syncScroll = !syncScroll }, toggleTask, Modifier.weight(1f).fillMaxWidth(),
+                        previewSearch, revealRequests)
                     else -> editorPane(Modifier.weight(1f).fillMaxWidth())
                 }
                 if (wide) WorkspaceStatusBar(content, fileMessage, ui)
@@ -1807,9 +1816,22 @@ private fun PreviewPane(
     syncScroll: Boolean,
     onToggleSyncScroll: () -> Unit,
     onToggleTask: (Int) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    search: PreviewSearch? = null,
+    revealRequests: Int = 0
 ) {
     val density = LocalDensity.current
+    var contentCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
+    // Scroll so the current hit sits in the upper third; one frame lets the new highlight report its position.
+    LaunchedEffect(revealRequests) {
+        if (revealRequests == 0 || search == null) return@LaunchedEffect
+        withFrameNanos { }
+        val anchor = search.anchor
+        val hit = anchor.coordinates?.takeIf { it.isAttached && anchor.ordinal >= 0 } ?: return@LaunchedEffect
+        val content = contentCoordinates?.takeIf { it.isAttached } ?: return@LaunchedEffect
+        val y = content.localPositionOf(hit, Offset(0f, anchor.top)).y
+        scrollState.animateScrollTo((y - scrollState.viewportSize / 3f).roundToInt().coerceIn(0, scrollState.maxValue))
+    }
     CompositionLocalProvider(LocalKomdPalette provides paperPalette(LocalKomdPalette.current.accent)) {
     val colors = LocalKomdPalette.current
     Column(modifier.background(colors.background)) {
@@ -1831,14 +1853,14 @@ private fun PreviewPane(
         val documentScale = LocalInterfaceScale.current.coerceAtLeast(0.5f)
         CompositionLocalProvider(LocalDensity provides Density(density.density, density.fontScale / documentScale * zoom)) {
             Column(Modifier.fillMaxSize().verticalScroll(scrollState)) {
-                Column(Modifier.widthIn(max = 780.dp).fillMaxWidth().padding(horizontal = 32.dp, vertical = 28.dp)) {
+                Column(Modifier.widthIn(max = 780.dp).fillMaxWidth().onGloballyPositioned { contentCoordinates = it }.padding(horizontal = 32.dp, vertical = 28.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(ui.document, Modifier.clip(RoundedCornerShape(5.dp)).background(colors.selectedDocument).padding(horizontal = 8.dp, vertical = 5.dp), color = colors.accent, fontSize = 9.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 0.4.sp)
                         Spacer(Modifier.width(8.dp))
                         Text(ui.updatedNow, color = colors.secondary, fontSize = 9.sp)
                     }
                     Spacer(Modifier.height(22.dp))
-                    CompositionLocalProvider(LocalDocumentDirectory provides documentDirectory, LocalTaskToggle provides onToggleTask) {
+                    CompositionLocalProvider(LocalDocumentDirectory provides documentDirectory, LocalTaskToggle provides onToggleTask, LocalPreviewSearch provides search) {
                         MarkdownDocument(markdown, ui.imageUnsupported)
                     }
                 }

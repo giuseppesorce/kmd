@@ -37,3 +37,22 @@ class DocumentSearchTest {
         assertEquals(-1, stepMatch(emptyList(), 0))
     }
 }
+
+class PreviewSearchCountTest {
+    @Test
+    fun countsRenderedTextNotMarkdownSyntax() {
+        val blocks = parseMarkdown("# Kotlin\n\n**Kotlin** e [link](https://kotlin.org)\n\n- kotlin\n- altro")
+        assertEquals(listOf(1, 1, 1), blocks.map { searchCount(it, "kotlin") })
+    }
+
+    @Test
+    fun countsQuotesTablesAndCode() {
+        val md = "> ab ab\n\n| ab | x |\n| --- | --- |\n| y | ab |\n\n```\nab\n```"
+        assertEquals(5, parseMarkdown(md).sumOf { searchCount(it, "ab") })
+    }
+
+    @Test
+    fun shortQueryCountsNothing() {
+        assertEquals(0, parseMarkdown("aaa").sumOf { searchCount(it, "a") })
+    }
+}

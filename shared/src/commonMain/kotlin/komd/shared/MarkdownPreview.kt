@@ -29,6 +29,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -124,13 +125,73 @@ internal val LocalTaskToggle = staticCompositionLocalOf<((Int) -> Unit)?> { null
 @Composable
 internal fun MarkdownDocument(markdown: String, imageUnsupported: String) {
     val blocks = remember(markdown) { parseMarkdown(markdown) }
-    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(0.dp)) {
-        blocks.forEach { block -> MarkdownBlock(block, imageUnsupported) }
+    val search = LocalPreviewSearch.current
+    val query = search?.query.orEmpty()
+    // Global ordinal of the first rendered hit in each block, in render order.
+    val bases = remember(blocks, query) { blocks.runningFold(0) { acc, block -> acc + searchCount(block, query) } }
+    val total = bases.last()
+    // Pair the current source match with the rendered hit of the same order (clamped).
+    val clamped = search?.takeIf { it.current >= 0 && total > 0 }?.let {
+        PreviewSearch(it.query, it.current.coerceAtMost(total - 1), it.soft, it.strong, it.anchor)
+    } ?: search?.let { PreviewSearch(it.query, -1, it.soft, it.strong, it.anchor) }
+    CompositionLocalProvider(LocalPreviewSearch provides clamped) {
+        Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(0.dp)) {
+            blocks.forEachIndexed { index, block -> MarkdownBlock(block, imageUnsupported, bases[index]) }
+        }
     }
 }
 
+/**
+ * Number of search hits in the rendered text of [block]. It walks the units in the same
+ * order as [MarkdownBlock] renders them, so the running sums are the ordinals used for highlighting.
+ */
+internal fun searchCount(block: MdBlock, query: String): Int {
+    if (query.length < MIN_SEARCH_LENGTH) return 0
+    return when (block) {
+        is MdBlock.Heading -> richCount(block.inlines, query)
+        is MdBlock.Paragraph -> richCount(block.inlines, query)
+        is MdBlock.Quote -> block.blocks.sumOf { searchCount(it, query) }
+        is MdBlock.Bullets -> block.items.sumOf { richCount(it.inlines, query) }
+        is MdBlock.Numbers -> block.items.sumOf { richCount(it.second, query) }
+        is MdBlock.Code -> findMatches(block.text.ifEmpty { " " }, query).size
+        is MdBlock.Table -> (block.header + block.rows.flatMap { row -> List(block.header.size.coerceAtLeast(1)) { row.getOrElse(it) { emptyList() } } })
+            .sumOf { richCount(it, query) }
+        is MdBlock.Image, MdBlock.Rule -> 0
+    }
+}
+
+/** Hits per text run of a [RichText] (images split the runs and are not searched). */
+private fun richRunCounts(inlines: List<MdInline>, query: String): List<Int> =
+    splitByImages(inlines).map { segment ->
+        if (segment is RichSegment.TextRun) findMatches(renderedText(segment.inlines), query).size else 0
+    }
+
+private fun richCount(inlines: List<MdInline>, query: String): Int = richRunCounts(inlines, query).sum()
+
+/** Plain text exactly as [appendInlines] emits it (thin spaces around code and padded spans included). */
+internal fun renderedText(inlines: List<MdInline>): String = buildString {
+    fun walk(items: List<MdInline>) {
+        items.forEach { item ->
+            when (item) {
+                is MdInline.Text -> append(item.value)
+                is MdInline.Code -> append("\u2009").append(item.value).append("\u2009")
+                is MdInline.Bold -> walk(item.children)
+                is MdInline.Italic -> walk(item.children)
+                is MdInline.Strike -> walk(item.children)
+                is MdInline.Link -> walk(item.children)
+                is MdInline.Image -> append(item.alt.ifEmpty { item.source })
+                is MdInline.Styled -> if (item.look.pad) {
+                    append("\u2009"); walk(item.children); append("\u2009")
+                } else walk(item.children)
+            }
+        }
+    }
+    walk(inlines)
+}
+
 @Composable
-private fun MarkdownBlock(block: MdBlock, imageUnsupported: String) {
+private fun MarkdownBlock(block: MdBlock, imageUnsupported: String, base: Int = 0) {
+    val query = LocalPreviewSearch.current?.query.orEmpty()
     val colors = LocalKomdPalette.current
     when (block) {
         is MdBlock.Heading -> {
@@ -144,26 +205,35 @@ private fun MarkdownBlock(block: MdBlock, imageUnsupported: String) {
                 block.inlines,
                 TextStyle(color = colors.foreground, fontSize = size, lineHeight = line, fontWeight = weight),
                 colors.foreground,
-                Modifier.fillMaxWidth().padding(top = top, bottom = bottom)
+                Modifier.fillMaxWidth().padding(top = top, bottom = bottom),
+                base = base
             )
         }
         is MdBlock.Paragraph -> RichText(
             block.inlines,
             bodyStyle(colors),
             colors.foreground,
-            Modifier.fillMaxWidth().padding(bottom = 14.dp)
+            Modifier.fillMaxWidth().padding(bottom = 14.dp),
+            base = base
         )
         is MdBlock.Quote -> {
             val bar = if (colors.background.luminance() > 0.5f) Color(0xFFD0D5DD) else Color(0xFF5C6B7E)
             Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min).padding(top = 4.dp, bottom = 16.dp)) {
                 Box(Modifier.width(3.dp).fillMaxHeight().clip(RoundedCornerShape(2.dp)).background(bar))
                 Column(Modifier.weight(1f).padding(start = 16.dp)) {
-                    block.blocks.forEach { child -> MarkdownBlock(child, imageUnsupported) }
+                    var childBase = base
+                    block.blocks.forEach { child ->
+                        MarkdownBlock(child, imageUnsupported, childBase)
+                        childBase += searchCount(child, query)
+                    }
                 }
             }
         }
         is MdBlock.Bullets -> Column(Modifier.fillMaxWidth().padding(bottom = 12.dp)) {
+            var itemBase = base
             block.items.forEach { item ->
+                val thisBase = itemBase
+                itemBase += richCount(item.inlines, query)
                 Row(Modifier.fillMaxWidth().padding(bottom = 10.dp), verticalAlignment = Alignment.Top) {
                     if (item.checked == null) {
                         Text("•", Modifier.width(22.dp), color = colors.foreground, fontSize = 16.sp, lineHeight = 26.sp)
@@ -179,12 +249,15 @@ private fun MarkdownBlock(block: MdBlock, imageUnsupported: String) {
                             } else markModifier
                         )
                     }
-                    RichText(item.inlines, bodyStyle(colors), colors.foreground, Modifier.weight(1f))
+                    RichText(item.inlines, bodyStyle(colors), colors.foreground, Modifier.weight(1f), base = thisBase)
                 }
             }
         }
         is MdBlock.Numbers -> Column(Modifier.fillMaxWidth().padding(bottom = 12.dp)) {
+            var itemBase = base
             block.items.forEach { (number, item) ->
+                val thisBase = itemBase
+                itemBase += richCount(item, query)
                 Row(Modifier.fillMaxWidth().padding(bottom = 8.dp), verticalAlignment = Alignment.Top) {
                     Text(
                         "$number.",
@@ -194,12 +267,12 @@ private fun MarkdownBlock(block: MdBlock, imageUnsupported: String) {
                         lineHeight = 26.sp,
                         fontWeight = FontWeight.Medium
                     )
-                    RichText(item, bodyStyle(colors), colors.foreground, Modifier.weight(1f))
+                    RichText(item, bodyStyle(colors), colors.foreground, Modifier.weight(1f), base = thisBase)
                 }
             }
         }
-        is MdBlock.Code -> CodeBlock(block.text)
-        is MdBlock.Table -> MarkdownTable(block)
+        is MdBlock.Code -> CodeBlock(block.text, base)
+        is MdBlock.Table -> MarkdownTable(block, base)
         is MdBlock.Image -> MarkdownImage(block.image, imageUnsupported)
         MdBlock.Rule -> Box(
             Modifier.fillMaxWidth().padding(top = 6.dp, bottom = 18.dp).height(1.dp).background(colors.divider)
@@ -239,7 +312,7 @@ private fun TaskMark(checked: Boolean, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun CodeBlock(code: String) {
+private fun CodeBlock(code: String, base: Int = 0) {
     val ui = LocalUiStrings.current
     val clipboard = LocalClipboardManager.current
     var copied by remember(code) { mutableStateOf(false) }
@@ -256,9 +329,12 @@ private fun CodeBlock(code: String) {
             .border(1.dp, Color(0xFFD5DBE3), shape)
             .background(Color(0xFFF2F4F8))
     ) {
+        val syntax = remember(code) { highlightCode(code.ifEmpty { " " }) }
+        val hit = rememberSearchHighlight(syntax, base)
         Text(
-            highlightCode(code.ifEmpty { " " }),
-            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(start = 18.dp, end = 88.dp, top = 16.dp, bottom = 16.dp),
+            hit.text,
+            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(start = 18.dp, end = 88.dp, top = 16.dp, bottom = 16.dp).then(hit.modifier),
+            onTextLayout = hit.onTextLayout,
             color = Color(0xFF1E3A5F),
             fontFamily = FontFamily.Monospace,
             fontSize = 13.5.sp,
@@ -363,7 +439,8 @@ private fun bodyStyle(colors: KomdPalette) = TextStyle(
 )
 
 @Composable
-private fun MarkdownTable(table: MdBlock.Table) {
+private fun MarkdownTable(table: MdBlock.Table, base: Int = 0) {
+    val query = LocalPreviewSearch.current?.query.orEmpty()
     val colors = LocalKomdPalette.current
     val light = colors.background.luminance() > 0.5f
     val headerBg = if (light) Color(0xFFF3F4F6) else Color(0xFF12263C)
@@ -376,11 +453,14 @@ private fun MarkdownTable(table: MdBlock.Table) {
         val colWidth = target / cols
         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
             Column(Modifier.width(colWidth * cols).border(1.dp, grid)) {
-                TableRow(table.header, table.aligns, colWidth, header = true, headerBg, grid, colors)
+                var rowBase = base
+                TableRow(table.header, table.aligns, colWidth, header = true, headerBg, grid, colors, rowBase)
+                rowBase += table.header.sumOf { richCount(it, query) }
                 table.rows.forEach { row ->
                     Box(Modifier.fillMaxWidth().height(1.dp).background(grid))
                     val padded = List(cols) { index -> row.getOrElse(index) { emptyList() } }
-                    TableRow(padded, table.aligns, colWidth, header = false, Color.Transparent, grid, colors)
+                    TableRow(padded, table.aligns, colWidth, header = false, Color.Transparent, grid, colors, rowBase)
+                    rowBase += padded.sumOf { richCount(it, query) }
                 }
             }
         }
@@ -396,9 +476,14 @@ private fun TableRow(
     background: Color,
     grid: Color,
     colors: KomdPalette,
+    base: Int = 0,
 ) {
+    val query = LocalPreviewSearch.current?.query.orEmpty()
     Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min).background(background)) {
+        var cellBase = base
         cells.forEachIndexed { index, cell ->
+            val thisBase = cellBase
+            cellBase += richCount(cell, query)
             if (index > 0) Box(Modifier.width(1.dp).fillMaxHeight().background(grid))
             val align = aligns.getOrElse(index) { MdAlign.Left }
             val textAlign = if (header) TextAlign.Center else when (align) {
@@ -421,7 +506,8 @@ private fun TableRow(
                     ),
                     colors.foreground,
                     Modifier.fillMaxWidth(),
-                    textAlign
+                    textAlign,
+                    base = thisBase
                 )
             }
         }
@@ -474,16 +560,19 @@ private fun RichText(
     color: Color,
     modifier: Modifier = Modifier,
     textAlign: TextAlign = TextAlign.Start,
+    base: Int = 0,
 ) {
     val segments = remember(inlines) { splitByImages(inlines) }
     if (segments.size == 1 && segments.first() is RichSegment.TextRun) {
-        InlineText((segments.first() as RichSegment.TextRun).inlines, style, color, modifier, textAlign)
+        InlineText((segments.first() as RichSegment.TextRun).inlines, style, color, modifier, textAlign, base)
         return
     }
+    val query = LocalPreviewSearch.current?.query.orEmpty()
+    val runBases = remember(inlines, query) { richRunCounts(inlines, query).runningFold(base) { acc, n -> acc + n } }
     Column(modifier) {
-        segments.forEach { segment ->
+        segments.forEachIndexed { index, segment ->
             when (segment) {
-                is RichSegment.TextRun -> InlineText(segment.inlines, style, color, Modifier.fillMaxWidth(), textAlign)
+                is RichSegment.TextRun -> InlineText(segment.inlines, style, color, Modifier.fillMaxWidth(), textAlign, runBases[index])
                 is RichSegment.ImageRun -> MarkdownImage(
                     PreviewImage(segment.alt, segment.source, ImageAlignment.Left),
                     segment.source
@@ -500,6 +589,7 @@ private fun InlineText(
     color: Color,
     modifier: Modifier = Modifier,
     textAlign: TextAlign = TextAlign.Start,
+    base: Int = 0,
 ) {
     val colors = LocalKomdPalette.current
     val annotated = remember(inlines, color, colors.accent, colors.button, style.fontSize) {
@@ -507,7 +597,8 @@ private fun InlineText(
             appendInlines(inlines, SpanStyle(color = color), colors, style.fontSize)
         }
     }
-    Text(annotated, modifier, style = style, textAlign = textAlign)
+    val hit = rememberSearchHighlight(annotated, base)
+    Text(hit.text, modifier.then(hit.modifier), style = style, textAlign = textAlign, onTextLayout = hit.onTextLayout)
 }
 
 private fun androidx.compose.ui.text.AnnotatedString.Builder.appendInlines(
