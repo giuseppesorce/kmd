@@ -41,6 +41,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -146,9 +152,12 @@ internal data class AppStrings(
     val taskList: String,
     val formatPlaceholder: String,
     val settings: String,
-    val commandSearch: String,
+    val searchPlaceholder: String,
+    val searchMinChars: String,
+    val noMatches: String,
+    val find: String,
+    val menuEdit: String,
     val preview: String,
-    val activeSession: String,
     val split: String,
     val editor: String,
     val line: String,
@@ -258,7 +267,7 @@ internal val italianStrings = AppStrings(
     customLink = "Custom Link", code = "Codice", list = "Elenco", quote = "Citazione", settings = "Impostazioni",
     formatting = "FORMATTAZIONE", heading = "Titolo", bold = "Grassetto", italic = "Corsivo", strikethrough = "Barrato",
     bulletList = "Elenco puntato", numberedList = "Elenco numerato", taskList = "Attività", formatPlaceholder = "testo",
-    commandSearch = "Cerca o esegui comando…", preview = "Anteprima", activeSession = "SESSIONE ATTIVA", split = "Diviso",
+    searchPlaceholder = "Cerca nel documento", searchMinChars = "Minimo 2 caratteri", noMatches = "Nessun risultato", find = "Trova…", menuEdit = "Modifica", preview = "Anteprima", split = "Diviso",
     editor = "Editor", line = "Riga", sourceMarkdown = "SORGENTE MD", monoFont = "Geist Mono", words = "parole", characters = "caratteri",
     localDraft = "Bozza locale", commonMark = "CommonMark", livePreview = "ANTEPRIMA LIVE", syncedScroll = "Scroll sincronizzato",
     gfmRender = "GFM Render", document = "DOCUMENTO KMD", updatedNow = "Aggiornato ora", insertImage = "Inserisci immagine",
@@ -297,7 +306,7 @@ private val englishStrings = AppStrings(
     customLink = "Custom link", code = "Code", list = "List", quote = "Quote", settings = "Settings",
     formatting = "FORMATTING", heading = "Heading", bold = "Bold", italic = "Italic", strikethrough = "Strikethrough",
     bulletList = "Bulleted list", numberedList = "Numbered list", taskList = "Task list", formatPlaceholder = "text",
-    commandSearch = "Search or run a command…", preview = "Preview", activeSession = "ACTIVE SESSION", split = "Split",
+    searchPlaceholder = "Search in document", searchMinChars = "At least 2 characters", noMatches = "No results", find = "Find…", menuEdit = "Edit", preview = "Preview", split = "Split",
     editor = "Editor", line = "Line", sourceMarkdown = "MARKDOWN SOURCE", monoFont = "Geist Mono", words = "words", characters = "characters",
     localDraft = "Local draft", commonMark = "CommonMark", livePreview = "LIVE PREVIEW", syncedScroll = "Synced scrolling",
     gfmRender = "GFM render", document = "KOMD DOCUMENT", updatedNow = "Updated now", insertImage = "Insert image",
@@ -336,7 +345,7 @@ private val frenchStrings = AppStrings(
     customLink = "Lien personnalisé", code = "Code", list = "Liste", quote = "Citation", settings = "Paramètres",
     formatting = "MISE EN FORME", heading = "Titre", bold = "Gras", italic = "Italique", strikethrough = "Barré",
     bulletList = "Liste à puces", numberedList = "Liste numérotée", taskList = "Tâches", formatPlaceholder = "texte",
-    commandSearch = "Rechercher ou lancer une commande…", preview = "Aperçu", activeSession = "SESSION ACTIVE", split = "Divisé",
+    searchPlaceholder = "Rechercher dans le document", searchMinChars = "2 caractères minimum", noMatches = "Aucun résultat", find = "Rechercher…", menuEdit = "Édition", preview = "Aperçu", split = "Divisé",
     editor = "Éditeur", line = "Ligne", sourceMarkdown = "SOURCE MARKDOWN", monoFont = "Geist Mono", words = "mots", characters = "caractères",
     localDraft = "Brouillon local", commonMark = "CommonMark", livePreview = "APERÇU EN DIRECT", syncedScroll = "Défilement synchronisé",
     gfmRender = "Rendu GFM", document = "DOCUMENT KMD", updatedNow = "Mis à jour", insertImage = "Insérer une image",
@@ -375,7 +384,7 @@ private val spanishStrings = AppStrings(
     customLink = "Enlace personalizado", code = "Código", list = "Lista", quote = "Cita", settings = "Ajustes",
     formatting = "FORMATO", heading = "Título", bold = "Negrita", italic = "Cursiva", strikethrough = "Tachado",
     bulletList = "Lista con viñetas", numberedList = "Lista numerada", taskList = "Tareas", formatPlaceholder = "texto",
-    commandSearch = "Buscar o ejecutar un comando…", preview = "Vista previa", activeSession = "SESIÓN ACTIVA", split = "Dividido",
+    searchPlaceholder = "Buscar en el documento", searchMinChars = "Mínimo 2 caracteres", noMatches = "Sin resultados", find = "Buscar…", menuEdit = "Editar", preview = "Vista previa", split = "Dividido",
     editor = "Editor", line = "Línea", sourceMarkdown = "FUENTE MARKDOWN", monoFont = "Geist Mono", words = "palabras", characters = "caracteres",
     localDraft = "Borrador local", commonMark = "CommonMark", livePreview = "VISTA PREVIA EN VIVO", syncedScroll = "Desplazamiento sincronizado",
     gfmRender = "Renderizado GFM", document = "DOCUMENTO KMD", updatedNow = "Actualizado ahora", insertImage = "Insertar imagen",
@@ -414,7 +423,7 @@ private val germanStrings = AppStrings(
     customLink = "Eigener Link", code = "Code", list = "Liste", quote = "Zitat", settings = "Einstellungen",
     formatting = "FORMATIERUNG", heading = "Überschrift", bold = "Fett", italic = "Kursiv", strikethrough = "Durchgestrichen",
     bulletList = "Aufzählung", numberedList = "Nummerierte Liste", taskList = "Aufgaben", formatPlaceholder = "Text",
-    commandSearch = "Suchen oder Befehl ausführen…", preview = "Vorschau", activeSession = "AKTIVE SITZUNG", split = "Geteilt",
+    searchPlaceholder = "Im Dokument suchen", searchMinChars = "Mindestens 2 Zeichen", noMatches = "Keine Treffer", find = "Suchen…", menuEdit = "Bearbeiten", preview = "Vorschau", split = "Geteilt",
     editor = "Editor", line = "Zeile", sourceMarkdown = "MARKDOWN-QUELLE", monoFont = "Geist Mono", words = "Wörter", characters = "Zeichen",
     localDraft = "Lokaler Entwurf", commonMark = "CommonMark", livePreview = "LIVE-VORSCHAU", syncedScroll = "Synchrones Scrollen",
     gfmRender = "GFM-Darstellung", document = "KOMD-DOKUMENT", updatedNow = "Gerade aktualisiert", insertImage = "Bild einfügen",
@@ -868,6 +877,70 @@ private fun AppContent(
         }
     }
 
+    // --- In-document search -------------------------------------------------------------
+    // `searchQuery` is what is typed; `searchedQuery` is the last submitted one, so the
+    // matches (and the n/m counter) only change on Enter/arrow, not on every keystroke.
+    var searchOpen by remember { mutableStateOf(false) }
+    var searchQuery by remember { mutableStateOf("") }
+    var searchedQuery by remember { mutableStateOf("") }
+    var currentMatch by remember { mutableIntStateOf(-1) }
+    var searchTooShort by remember { mutableStateOf(false) }
+    var searchFocusRequests by remember { mutableIntStateOf(0) }
+    var revealRequests by remember { mutableIntStateOf(0) }
+    var editorLayout by remember { mutableStateOf<TextLayoutResult?>(null) }
+    val searchMatches = remember(content, searchedQuery) { findMatches(content, searchedQuery) }
+    val shownMatch = if (currentMatch in searchMatches.indices) currentMatch else -1
+    val searchStatus = when {
+        searchTooShort -> SearchStatus.TooShort
+        searchedQuery.isEmpty() || searchedQuery != searchQuery -> SearchStatus.Idle
+        searchMatches.isEmpty() -> SearchStatus.NoMatches
+        else -> SearchStatus.Found(shownMatch + 1, searchMatches.size)
+    }
+    val openSearch: () -> Unit = {
+        searchOpen = true
+        searchFocusRequests++
+    }
+    val closeSearch: () -> Unit = {
+        searchOpen = false
+        searchedQuery = ""
+        currentMatch = -1
+        searchTooShort = false
+    }
+    val runSearch: (Boolean) -> Unit = run@{ forward ->
+        if (searchQuery.length < MIN_SEARCH_LENGTH) {
+            searchTooShort = true
+            return@run
+        }
+        searchTooShort = false
+        val again = searchQuery == searchedQuery && currentMatch in searchMatches.indices
+        val matches = if (again) searchMatches else findMatches(content, searchQuery)
+        currentMatch = if (again) stepMatch(matches, currentMatch, forward) else firstMatchFrom(matches, selection.min)
+        searchedQuery = searchQuery
+        matches.getOrNull(currentMatch)?.let { range ->
+            // The match becomes the editor selection, so typing replaces it like in any editor.
+            selection = TextRange(range.first, range.last + 1)
+            composition = null
+            revealRequests++
+        }
+    }
+    val searchColors = colors.accent.copy(alpha = 0.18f) to colors.accent.copy(alpha = 0.5f)
+    val previewHitAnchor = remember { HitAnchor() }
+    // The preview scrolls to the hit itself when the editor is hidden or does not drive it via synced scroll.
+    val previewSearch = if (searchOpen && searchedQuery.isNotEmpty()) {
+        PreviewSearch(searchedQuery, shownMatch, searchColors.first, searchColors.second, previewHitAnchor)
+    } else null
+    // Scrolls the editor so the current match sits in the upper third of the viewport.
+    // Waits one frame so the new selection/highlight is laid out first.
+    LaunchedEffect(revealRequests) {
+        if (revealRequests == 0 || workspaceMode == WorkspaceMode.Preview) return@LaunchedEffect
+        withFrameNanos { }
+        val range = searchMatches.getOrNull(currentMatch) ?: return@LaunchedEffect
+        val layout = editorLayout ?: return@LaunchedEffect
+        if (range.first >= layout.layoutInput.text.length) return@LaunchedEffect
+        val top = layout.getBoundingBox(range.first).top
+        editorScroll.animateScrollTo((top - editorScroll.viewportSize / 3f).roundToInt().coerceAtLeast(0))
+    }
+
     if (commands != null) {
         val labels = MenuLabels.fromStrings(ui)
         SideEffect {
@@ -880,6 +953,7 @@ private fun AppContent(
                 exportHtml = exportHtml,
                 close = closeCurrent,
                 requestExit = requestExit,
+                find = openSearch,
             )
         }
         DisposableEffect(commands) { onDispose { commands.target = null } }
@@ -904,6 +978,10 @@ private fun AppContent(
                 }
                 Key.W -> {
                     closeCurrent()
+                    true
+                }
+                Key.F -> {
+                    openSearch()
                     true
                 }
                 else -> false
@@ -940,6 +1018,17 @@ private fun AppContent(
                 )
             }
 
+            val searchField: @Composable (Modifier) -> Unit = { fieldModifier ->
+                DocumentSearchField(
+                    query = searchQuery,
+                    onQueryChange = { searchQuery = it; searchTooShort = false },
+                    onSubmit = runSearch,
+                    onClose = closeSearch,
+                    status = searchStatus,
+                    focusRequests = searchFocusRequests,
+                    modifier = fieldModifier
+                )
+            }
             Column(Modifier.weight(1f).fillMaxHeight()) {
                 AppTopBar(
                     documentName = documents.getOrNull(selectedIndex)?.name ?: "KoMD",
@@ -955,7 +1044,10 @@ private fun AppContent(
                     previewActive = workspaceMode == WorkspaceMode.Preview,
                     onPreviewToggle = {
                         workspaceMode = if (workspaceMode == WorkspaceMode.Preview) WorkspaceMode.Split else WorkspaceMode.Preview
-                    }
+                    },
+                    searchOpen = searchOpen,
+                    onSearchToggle = { if (searchOpen) closeSearch() else openSearch() },
+                    searchField = searchField
                 )
                 if (wide) {
                     WorkspaceToolbar(
@@ -965,6 +1057,12 @@ private fun AppContent(
                         onModeChange = { workspaceMode = it },
                         onSave = { saveFile(true) }
                     )
+                }
+                // On narrow screens the top bar has no room: the field gets its own row below it.
+                if (!wide && searchOpen) {
+                    Box(Modifier.fillMaxWidth().background(colors.toolbar).padding(horizontal = 12.dp, vertical = 6.dp)) {
+                        searchField(Modifier.fillMaxWidth())
+                    }
                 }
                 DividerLine(colors)
 
@@ -977,7 +1075,11 @@ private fun AppContent(
                         selection = newValue.selection
                         composition = newValue.composition
                         if (textChanged) documents = documents.toMutableList().also { if (selectedIndex in it.indices) it[selectedIndex] = it[selectedIndex].copy(content = newValue.text) }
-                    }, ui, editorZoom, { editorZoom = it }, editorScroll, paneModifier)
+                    }, ui, editorZoom, { editorZoom = it }, editorScroll, paneModifier,
+                        highlight = if (previewSearch != null) {
+                            SearchHighlightTransformation(searchMatches, shownMatch, searchColors.first, searchColors.second)
+                        } else VisualTransformation.None,
+                        onTextLayout = { editorLayout = it })
                 }
                 // Checkbox click in the preview: flip "[ ]" <-> "[x]" on that source line. Same length,
                 // so the editor selection stays valid; editor and preview both re-read `content`.
@@ -996,9 +1098,11 @@ private fun AppContent(
                             availableWidthPx = splitWidthPx,
                             onDrag = { delta -> splitRatio = (splitRatio + delta).coerceIn(0.2f, 0.8f) }
                         )
-                        PreviewPane(content, documentDirectory(), ui, previewZoom, { previewZoom = it }, previewScroll, syncScroll, { syncScroll = !syncScroll }, toggleTask, Modifier.weight(1f - splitRatio).fillMaxHeight())
+                        PreviewPane(content, documentDirectory(), ui, previewZoom, { previewZoom = it }, previewScroll, syncScroll, { syncScroll = !syncScroll }, toggleTask, Modifier.weight(1f - splitRatio).fillMaxHeight(),
+                            previewSearch, revealRequests.takeIf { !syncScroll } ?: 0)
                     }
-                    workspaceMode == WorkspaceMode.Preview -> PreviewPane(content, documentDirectory(), ui, previewZoom, { previewZoom = it }, previewScroll, syncScroll, { syncScroll = !syncScroll }, toggleTask, Modifier.weight(1f).fillMaxWidth())
+                    workspaceMode == WorkspaceMode.Preview -> PreviewPane(content, documentDirectory(), ui, previewZoom, { previewZoom = it }, previewScroll, syncScroll, { syncScroll = !syncScroll }, toggleTask, Modifier.weight(1f).fillMaxWidth(),
+                        previewSearch, revealRequests)
                     else -> editorPane(Modifier.weight(1f).fillMaxWidth())
                 }
                 if (wide) WorkspaceStatusBar(content, fileMessage, ui)
@@ -1245,7 +1349,10 @@ private fun AppTopBar(
     onExportHtml: () -> Unit,
     onPreviewToggle: () -> Unit,
     previewActive: Boolean,
-    wide: Boolean
+    wide: Boolean,
+    searchOpen: Boolean,
+    onSearchToggle: () -> Unit,
+    searchField: @Composable (Modifier) -> Unit
 ) {
     val colors = LocalKomdPalette.current
     Row(
@@ -1260,26 +1367,18 @@ private fun AppTopBar(
                 SmallButton("↥") { onSave() }
                 SmallButton("HTML") { onExportHtml() }
                 SmallButton(if (previewActive) ui.editor else ui.preview) { onPreviewToggle() }
+                SearchToggleButton(searchOpen, ui.find, onSearchToggle, Modifier.padding(horizontal = 3.dp))
             } else {
                 Box(Modifier.size(7.dp).clip(RoundedCornerShape(50)).background(Color(0xFF41C9A0)))
                 Spacer(Modifier.width(9.dp))
-                Text(documentName, color = colors.foreground, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                Text(documentName, color = colors.foreground, fontSize = 13.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
-        Spacer(Modifier.weight(1f))
+        Spacer(Modifier.weight(1f).widthIn(min = 12.dp))
         if (wide) {
-            Row(
-                Modifier.widthIn(max = 310.dp).fillMaxWidth().clip(RoundedCornerShape(8.dp))
-                    .background(colors.background).padding(horizontal = 11.dp, vertical = 7.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text("⌕", color = colors.secondary, fontSize = 15.sp)
-                Spacer(Modifier.width(8.dp))
-                Text(ui.commandSearch, color = colors.secondary, fontSize = 11.sp)
-                Spacer(Modifier.weight(1f))
-                Text("⌘ K", color = colors.secondary, fontSize = 10.sp)
-            }
-            Spacer(Modifier.weight(1f))
+            // Document name … [search field] [lens] [B I link code]: the field opens between name and lens.
+            if (searchOpen) searchField(Modifier.width(280.dp).padding(end = 6.dp))
+            SearchToggleButton(searchOpen, ui.find, onSearchToggle, Modifier.padding(horizontal = 3.dp))
             listOf(FormatAction.Bold, FormatAction.Italic, FormatAction.Link, FormatAction.InlineCode).forEach {
                 FormatChipContent(it, onFormat, Modifier.padding(horizontal = 3.dp))
             }
@@ -1305,8 +1404,7 @@ private fun WorkspaceToolbar(
     ) {
         Box(Modifier.size(6.dp).clip(RoundedCornerShape(50)).background(Color(0xFF41C9A0)))
         Spacer(Modifier.width(8.dp))
-        Text(ui.activeSession, color = colors.accent, fontSize = 9.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 0.6.sp)
-        Text("   ${ui.documents.lowercase()}   /   $documentName", color = colors.secondary, fontSize = 10.sp, maxLines = 1)
+        Text("${ui.documents.lowercase()}   /   $documentName", color = colors.secondary, fontSize = 10.sp, maxLines = 1)
         Spacer(Modifier.weight(1f))
         WorkspaceMode.entries.forEach { option ->
             ModeButton(workspaceModeLabel(option, ui), mode == option, onClick = { onModeChange(option) })
@@ -1547,7 +1645,9 @@ private fun EditorPane(
     zoom: Float,
     onZoomChange: (Float) -> Unit,
     scrollState: ScrollState,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    highlight: VisualTransformation = VisualTransformation.None,
+    onTextLayout: (TextLayoutResult) -> Unit = {}
 ) {
     val density = LocalDensity.current
     var editorHasFocus by remember { mutableStateOf(false) }
@@ -1587,6 +1687,8 @@ private fun EditorPane(
                 BasicTextField(
                     value = value,
                     onValueChange = onChange,
+                    visualTransformation = highlight,
+                    onTextLayout = onTextLayout,
                     modifier = Modifier.weight(1f).fillMaxHeight()
                         .verticalScroll(scrollState)
                         .onFocusChanged { editorHasFocus = it.isFocused }
@@ -1714,9 +1816,22 @@ private fun PreviewPane(
     syncScroll: Boolean,
     onToggleSyncScroll: () -> Unit,
     onToggleTask: (Int) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    search: PreviewSearch? = null,
+    revealRequests: Int = 0
 ) {
     val density = LocalDensity.current
+    var contentCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
+    // Scroll so the current hit sits in the upper third; one frame lets the new highlight report its position.
+    LaunchedEffect(revealRequests) {
+        if (revealRequests == 0 || search == null) return@LaunchedEffect
+        withFrameNanos { }
+        val anchor = search.anchor
+        val hit = anchor.coordinates?.takeIf { it.isAttached && anchor.ordinal >= 0 } ?: return@LaunchedEffect
+        val content = contentCoordinates?.takeIf { it.isAttached } ?: return@LaunchedEffect
+        val y = content.localPositionOf(hit, Offset(0f, anchor.top)).y
+        scrollState.animateScrollTo((y - scrollState.viewportSize / 3f).roundToInt().coerceIn(0, scrollState.maxValue))
+    }
     CompositionLocalProvider(LocalKomdPalette provides paperPalette(LocalKomdPalette.current.accent)) {
     val colors = LocalKomdPalette.current
     Column(modifier.background(colors.background)) {
@@ -1738,14 +1853,14 @@ private fun PreviewPane(
         val documentScale = LocalInterfaceScale.current.coerceAtLeast(0.5f)
         CompositionLocalProvider(LocalDensity provides Density(density.density, density.fontScale / documentScale * zoom)) {
             Column(Modifier.fillMaxSize().verticalScroll(scrollState)) {
-                Column(Modifier.widthIn(max = 780.dp).fillMaxWidth().padding(horizontal = 32.dp, vertical = 28.dp)) {
+                Column(Modifier.widthIn(max = 780.dp).fillMaxWidth().onGloballyPositioned { contentCoordinates = it }.padding(horizontal = 32.dp, vertical = 28.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(ui.document, Modifier.clip(RoundedCornerShape(5.dp)).background(colors.selectedDocument).padding(horizontal = 8.dp, vertical = 5.dp), color = colors.accent, fontSize = 9.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 0.4.sp)
                         Spacer(Modifier.width(8.dp))
                         Text(ui.updatedNow, color = colors.secondary, fontSize = 9.sp)
                     }
                     Spacer(Modifier.height(22.dp))
-                    CompositionLocalProvider(LocalDocumentDirectory provides documentDirectory, LocalTaskToggle provides onToggleTask) {
+                    CompositionLocalProvider(LocalDocumentDirectory provides documentDirectory, LocalTaskToggle provides onToggleTask, LocalPreviewSearch provides search) {
                         MarkdownDocument(markdown, ui.imageUnsupported)
                     }
                 }
