@@ -48,6 +48,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.platform.LocalDensity
 import kotlin.math.roundToInt
+import androidx.compose.ui.text.style.TextOverflow
 import io.github.vinceglb.filekit.PlatformFile
 import io.github.vinceglb.filekit.dialogs.FileKitType
 import io.github.vinceglb.filekit.dialogs.FileKitDialogSettings
@@ -221,13 +222,7 @@ internal data class AppStrings(
     val welcomeDirections: String,
     val welcomeBullets: List<String>,
     val welcomeQuote: String,
-    val notesName: String,
-    val websiteName: String,
-    val draftName: String,
-    val websiteTitle: String,
-    val websiteDraft: String,
-    val ideasTitle: String,
-    val ideasPrompt: String,
+    val welcomeName: String,
     val untitledName: String,
     val untitledTitle: String,
     val colorMandarin: String,
@@ -251,6 +246,10 @@ internal data class AppStrings(
     val exportedWithImages: String,
     val exportImagesSkipped: String,
     val exportFailure: String,
+    val recentFiles: String,
+    val missingFileTitle: String,
+    val missingFileMessage: String,
+    val ok: String,
 )
 
 internal val italianStrings = AppStrings(
@@ -280,8 +279,7 @@ internal val italianStrings = AppStrings(
     hello = "Ciao", welcomeTitle = "Benvenuto in KoMD", welcomeIntro = "Un editor Markdown semplice, pensato per scrivere con calma.",
     welcomeSection = "Scrivi e visualizza", welcomeDirections = "Modifica il testo qui a sinistra e osserva l’anteprima aggiornarsi in tempo reale.",
     welcomeBullets = listOf("Usa i pulsanti rapidi per inserire elementi", "Scrivi in Markdown", "Concentrati sul contenuto"),
-    welcomeQuote = "KoMD — Markdown, senza distrazioni.", notesName = "Appunti.md", websiteName = "Sito_Web.md", draftName = "Bozza.md",
-    websiteTitle = "Sito web", websiteDraft = "Bozza per il prossimo progetto.", ideasTitle = "Idee", ideasPrompt = "Aggiungi qui le tue note.",
+    welcomeQuote = "KoMD — Markdown, senza distrazioni.", welcomeName = "Welcome.md",
     untitledName = "Senza titolo.md", untitledTitle = "Senza titolo", colorMandarin = "Mandarino", colorApricot = "Albicocca",
     colorPeach = "Pesca", colorTerracotta = "Terracotta", colorRose = "Rosa", colorHoney = "Miele", colorSage = "Salvia",
     menuFile = "File", closeDocument = "Chiudi", unsavedTitle = "Modifiche non salvate",
@@ -289,7 +287,8 @@ internal val italianStrings = AppStrings(
     exitUnsavedMessage = "Documenti con modifiche non salvate: {count}. Se esci andranno perse.", exitWithoutSaving = "Esci senza salvare",
     noDocuments = "Nessun documento aperto", noDocumentsHint = "Crea un nuovo documento o aprine uno dal disco.",
     exportHtml = "Esporta HTML…", exported = "Esportato {name}", exportedWithImages = "Esportato {name} con {count} immagini nella cartella images",
-    exportImagesSkipped = "Esportato {name}, ma {count} immagini non sono state copiate", exportFailure = "Impossibile esportare: {error}"
+    exportImagesSkipped = "Esportato {name}, ma {count} immagini non sono state copiate", exportFailure = "Impossibile esportare: {error}",
+    recentFiles = "RECENTI", missingFileTitle = "File non trovato", missingFileMessage = "Il file “{name}” non è più presente in:\n{path}\n\nForse è stato spostato, rinominato o eliminato. Verrà rimosso dalla lista dei recenti.", ok = "OK",
 )
 
 private val englishStrings = AppStrings(
@@ -319,8 +318,7 @@ private val englishStrings = AppStrings(
     hello = "Hello", welcomeTitle = "Welcome to KoMD", welcomeIntro = "A simple Markdown editor, made for calm writing.",
     welcomeSection = "Write and preview", welcomeDirections = "Edit the text on the left and watch the preview update in real time.",
     welcomeBullets = listOf("Use quick actions to insert elements", "Write in Markdown", "Focus on your content"),
-    welcomeQuote = "KoMD — Markdown, without distractions.", notesName = "Notes.md", websiteName = "Website.md", draftName = "Draft.md",
-    websiteTitle = "Website", websiteDraft = "A draft for the next project.", ideasTitle = "Ideas", ideasPrompt = "Add your notes here.",
+    welcomeQuote = "KoMD — Markdown, without distractions.", welcomeName = "Welcome.md",
     untitledName = "Untitled.md", untitledTitle = "Untitled", colorMandarin = "Mandarin", colorApricot = "Apricot",
     colorPeach = "Peach", colorTerracotta = "Terracotta", colorRose = "Rose", colorHoney = "Honey", colorSage = "Sage",
     menuFile = "File", closeDocument = "Close", unsavedTitle = "Unsaved changes",
@@ -328,7 +326,8 @@ private val englishStrings = AppStrings(
     exitUnsavedMessage = "Documents with unsaved changes: {count}. They will be lost if you quit.", exitWithoutSaving = "Quit without saving",
     noDocuments = "No open documents", noDocumentsHint = "Create a new document or open one from disk.",
     exportHtml = "Export HTML…", exported = "Exported {name}", exportedWithImages = "Exported {name} with {count} images in the images folder",
-    exportImagesSkipped = "Exported {name}, but {count} images could not be copied", exportFailure = "Could not export: {error}"
+    exportImagesSkipped = "Exported {name}, but {count} images could not be copied", exportFailure = "Could not export: {error}",
+    recentFiles = "RECENT", missingFileTitle = "File not found", missingFileMessage = "The file “{name}” is no longer at:\n{path}\n\nIt may have been moved, renamed or deleted. It will be removed from the recent files list.", ok = "OK",
 )
 
 private val frenchStrings = AppStrings(
@@ -358,8 +357,7 @@ private val frenchStrings = AppStrings(
     hello = "Bonjour", welcomeTitle = "Bienvenue dans KoMD", welcomeIntro = "Un éditeur Markdown simple, conçu pour écrire sereinement.",
     welcomeSection = "Écrire et prévisualiser", welcomeDirections = "Modifiez le texte à gauche et voyez l’aperçu se mettre à jour en temps réel.",
     welcomeBullets = listOf("Utilisez les raccourcis pour insérer des éléments", "Écrivez en Markdown", "Concentrez-vous sur votre contenu"),
-    welcomeQuote = "KoMD — Markdown, sans distraction.", notesName = "Notes.md", websiteName = "Site_Web.md", draftName = "Brouillon.md",
-    websiteTitle = "Site web", websiteDraft = "Brouillon pour le prochain projet.", ideasTitle = "Idées", ideasPrompt = "Ajoutez vos notes ici.",
+    welcomeQuote = "KoMD — Markdown, sans distraction.", welcomeName = "Welcome.md",
     untitledName = "Sans_titre.md", untitledTitle = "Sans titre", colorMandarin = "Mandarine", colorApricot = "Abricot",
     colorPeach = "Pêche", colorTerracotta = "Terracotta", colorRose = "Rose", colorHoney = "Miel", colorSage = "Sauge",
     menuFile = "Fichier", closeDocument = "Fermer", unsavedTitle = "Modifications non enregistrées",
@@ -367,7 +365,8 @@ private val frenchStrings = AppStrings(
     exitUnsavedMessage = "Documents avec des modifications non enregistrées : {count}. Elles seront perdues si vous quittez.", exitWithoutSaving = "Quitter sans enregistrer",
     noDocuments = "Aucun document ouvert", noDocumentsHint = "Créez un nouveau document ou ouvrez-en un depuis le disque.",
     exportHtml = "Exporter en HTML…", exported = "{name} exporté", exportedWithImages = "{name} exporté avec {count} images dans le dossier images",
-    exportImagesSkipped = "{name} exporté, mais {count} images n’ont pas pu être copiées", exportFailure = "Impossible d’exporter : {error}"
+    exportImagesSkipped = "{name} exporté, mais {count} images n’ont pas pu être copiées", exportFailure = "Impossible d’exporter : {error}",
+    recentFiles = "RÉCENTS", missingFileTitle = "Fichier introuvable", missingFileMessage = "Le fichier « {name} » n’est plus présent à l’emplacement :\n{path}\n\nIl a peut-être été déplacé, renommé ou supprimé. Il sera retiré de la liste des fichiers récents.", ok = "OK",
 )
 
 private val spanishStrings = AppStrings(
@@ -397,8 +396,7 @@ private val spanishStrings = AppStrings(
     hello = "Hola", welcomeTitle = "Te damos la bienvenida a KoMD", welcomeIntro = "Un editor Markdown sencillo, pensado para escribir con calma.",
     welcomeSection = "Escribe y visualiza", welcomeDirections = "Edita el texto de la izquierda y observa cómo la vista previa se actualiza en tiempo real.",
     welcomeBullets = listOf("Usa los accesos rápidos para insertar elementos", "Escribe en Markdown", "Concéntrate en el contenido"),
-    welcomeQuote = "KoMD — Markdown, sin distracciones.", notesName = "Notas.md", websiteName = "Sitio_Web.md", draftName = "Borrador.md",
-    websiteTitle = "Sitio web", websiteDraft = "Borrador para el próximo proyecto.", ideasTitle = "Ideas", ideasPrompt = "Añade aquí tus notas.",
+    welcomeQuote = "KoMD — Markdown, sin distracciones.", welcomeName = "Welcome.md",
     untitledName = "Sin_título.md", untitledTitle = "Sin título", colorMandarin = "Mandarina", colorApricot = "Albaricoque",
     colorPeach = "Melocotón", colorTerracotta = "Terracota", colorRose = "Rosa", colorHoney = "Miel", colorSage = "Salvia",
     menuFile = "Archivo", closeDocument = "Cerrar", unsavedTitle = "Cambios sin guardar",
@@ -406,7 +404,8 @@ private val spanishStrings = AppStrings(
     exitUnsavedMessage = "Documentos con cambios sin guardar: {count}. Se perderán si sales.", exitWithoutSaving = "Salir sin guardar",
     noDocuments = "No hay documentos abiertos", noDocumentsHint = "Crea un documento nuevo o abre uno desde el disco.",
     exportHtml = "Exportar HTML…", exported = "Exportado {name}", exportedWithImages = "Exportado {name} con {count} imágenes en la carpeta images",
-    exportImagesSkipped = "Exportado {name}, pero no se pudieron copiar {count} imágenes", exportFailure = "No se pudo exportar: {error}"
+    exportImagesSkipped = "Exportado {name}, pero no se pudieron copiar {count} imágenes", exportFailure = "No se pudo exportar: {error}",
+    recentFiles = "RECIENTES", missingFileTitle = "Archivo no encontrado", missingFileMessage = "El archivo «{name}» ya no está en:\n{path}\n\nPuede que se haya movido, renombrado o eliminado. Se quitará de la lista de recientes.", ok = "Aceptar",
 )
 
 private val germanStrings = AppStrings(
@@ -436,8 +435,7 @@ private val germanStrings = AppStrings(
     hello = "Hallo", welcomeTitle = "Willkommen bei KoMD", welcomeIntro = "Ein einfacher Markdown-Editor für entspanntes Schreiben.",
     welcomeSection = "Schreiben und Vorschau", welcomeDirections = "Bearbeite den Text links und sieh zu, wie die Vorschau live aktualisiert wird.",
     welcomeBullets = listOf("Füge Elemente über die Schnellaktionen ein", "Schreibe in Markdown", "Konzentriere dich auf den Inhalt"),
-    welcomeQuote = "KoMD — Markdown ohne Ablenkung.", notesName = "Notizen.md", websiteName = "Website.md", draftName = "Entwurf.md",
-    websiteTitle = "Website", websiteDraft = "Entwurf für das nächste Projekt.", ideasTitle = "Ideen", ideasPrompt = "Füge hier deine Notizen hinzu.",
+    welcomeQuote = "KoMD — Markdown ohne Ablenkung.", welcomeName = "Welcome.md",
     untitledName = "Unbenannt.md", untitledTitle = "Unbenannt", colorMandarin = "Mandarine", colorApricot = "Aprikose",
     colorPeach = "Pfirsich", colorTerracotta = "Terrakotta", colorRose = "Rosa", colorHoney = "Honig", colorSage = "Salbei",
     menuFile = "Datei", closeDocument = "Schließen", unsavedTitle = "Nicht gespeicherte Änderungen",
@@ -445,7 +443,8 @@ private val germanStrings = AppStrings(
     exitUnsavedMessage = "Dokumente mit nicht gespeicherten Änderungen: {count}. Sie gehen beim Beenden verloren.", exitWithoutSaving = "Ohne Speichern beenden",
     noDocuments = "Keine geöffneten Dokumente", noDocumentsHint = "Erstelle ein neues Dokument oder öffne eines von der Festplatte.",
     exportHtml = "Als HTML exportieren…", exported = "{name} exportiert", exportedWithImages = "{name} mit {count} Bildern im Ordner images exportiert",
-    exportImagesSkipped = "{name} exportiert, aber {count} Bilder konnten nicht kopiert werden", exportFailure = "Export fehlgeschlagen: {error}"
+    exportImagesSkipped = "{name} exportiert, aber {count} Bilder konnten nicht kopiert werden", exportFailure = "Export fehlgeschlagen: {error}",
+    recentFiles = "ZULETZT", missingFileTitle = "Datei nicht gefunden", missingFileMessage = "Die Datei „{name}“ befindet sich nicht mehr unter:\n{path}\n\nSie wurde möglicherweise verschoben, umbenannt oder gelöscht. Sie wird aus der Liste der zuletzt verwendeten Dateien entfernt.", ok = "OK",
 )
 
 private fun stringsFor(language: UiLanguage): AppStrings = when (language) {
@@ -487,9 +486,7 @@ fun hello() = "${strings.hello}, KoMD!"
 """
 
 private fun initialDocuments(strings: AppStrings): List<Document> = listOf(
-    Document(strings.notesName, welcomeText(strings)),
-    Document(strings.websiteName, "# ${strings.websiteTitle}\n\n${strings.websiteDraft}\n"),
-    Document(strings.draftName, "# ${strings.ideasTitle}\n\n${strings.ideasPrompt}\n")
+    Document(strings.welcomeName, welcomeText(strings))
 )
 
 private fun imageAlignmentLabel(alignment: ImageAlignment, strings: AppStrings): String = when (alignment) {
@@ -613,6 +610,17 @@ private fun AppContent(
     }
     val scope = rememberCoroutineScope()
     val latestContent by rememberUpdatedState(content)
+    // --- Recent files: last MAX_RECENT_FILES files opened or saved, persisted across launches ---
+    var recentFiles by remember { mutableStateOf(decodeRecentFiles(RecentFilesStorage.load())) }
+    var missingRecent by remember { mutableStateOf<RecentFile?>(null) }
+    val updateRecentFiles: ((List<RecentFile>) -> List<RecentFile>) -> Unit = { transform ->
+        recentFiles = transform(recentFiles)
+        RecentFilesStorage.save(encodeRecentFiles(recentFiles))
+    }
+    suspend fun rememberRecent(file: PlatformFile) {
+        val entry = recentFileOf(file)
+        updateRecentFiles { it.withRecent(entry) }
+    }
     suspend fun openDocument(file: PlatformFile) {
         // A file that is already open in a tab is focused instead of being opened twice.
         val alreadyOpen = documents.indexOfFirst { it.file?.path == file.path }
@@ -625,6 +633,7 @@ private fun AppContent(
                 replaceContent(documents[alreadyOpen].content)
             }
             fileMessage = ui.opened.replace("{name}", file.name)
+            rememberRecent(file)
             return
         }
         runCatching { file.readString() }
@@ -636,6 +645,7 @@ private fun AppContent(
                 selectedIndex = documents.lastIndex
                 replaceContent(loaded)
                 fileMessage = ui.opened.replace("{name}", file.name)
+                rememberRecent(file)
             }
             .onFailure { fileMessage = ui.readFailure.replace("{error}", it.message ?: ui.unknownError) }
     }
@@ -676,6 +686,7 @@ private fun AppContent(
                             composition = null
                         }
                         fileMessage = ui.saved.replace("{name}", file.name)
+                        rememberRecent(file)
                         afterSave?.invoke()
                     }
                     .onFailure { fileMessage = ui.saveFailure.replace("{error}", it.message ?: ui.unknownError) }
@@ -734,6 +745,20 @@ private fun AppContent(
         fileMessage = null
         picker.launch()
     }
+    /** Reopens a recent file; if it is gone (moved, renamed, deleted) asks to drop it from the list. */
+    val openRecent: (RecentFile) -> Unit = { entry ->
+        fileMessage = null
+        scope.launch {
+            val file = resolveRecentFile(entry)
+            if (file == null) {
+                missingRecent = entry
+            } else {
+                // A bookmark can follow a moved file (Apple): keep one entry, under the new path.
+                if (file.path != entry.path) updateRecentFiles { it.withoutRecent(entry.path) }
+                openDocument(file)
+            }
+        }
+    }
     /** Saves the current document: in place when [overwrite] and it has a file, otherwise via "Save as". [onSaved] runs only on success. */
     val saveDocument: (overwrite: Boolean, onSaved: (() -> Unit)?) -> Unit = save@{ overwrite, onSaved ->
         val index = selectedIndex
@@ -749,6 +774,7 @@ private fun AppContent(
                             if (index in list.indices) list[index] = list[index].copy(content = text, baseline = text)
                         }
                         fileMessage = ui.saved.replace("{name}", existing.name)
+                        rememberRecent(existing)
                         onSaved?.invoke()
                     }
                     .onFailure { fileMessage = ui.saveFailure.replace("{error}", it.message ?: ui.unknownError) }
@@ -896,6 +922,9 @@ private fun AppContent(
                         selectedIndex = index
                         replaceContent(documents[index].content)
                     },
+                    recentFiles = recentFiles,
+                    openPaths = documents.mapNotNull { it.file?.path }.toSet(),
+                    onOpenRecent = openRecent,
                     onNew = newDocument,
                     onOpen = { fileMessage = null; picker.launch() },
                     onSave = { saveFile(true) },
@@ -1102,6 +1131,19 @@ private fun AppContent(
                 text = { Text(ui.exitUnsavedMessage.replace("{count}", dirtyCount.toString())) },
                 confirmButton = { TextButton(onClick = { showExitConfirm = false; onExit() }) { Text(ui.exitWithoutSaving) } },
                 dismissButton = { TextButton(onClick = { showExitConfirm = false }) { Text(ui.cancel) } }
+            )
+        }
+
+        missingRecent?.let { entry ->
+            val dismiss = {
+                updateRecentFiles { it.withoutRecent(entry.path) }
+                missingRecent = null
+            }
+            AlertDialog(
+                onDismissRequest = dismiss,
+                title = { Text(ui.missingFileTitle) },
+                text = { Text(ui.missingFileMessage.replace("{name}", entry.name).replace("{path}", entry.path)) },
+                confirmButton = { TextButton(onClick = dismiss) { Text(ui.ok) } }
             )
         }
 
@@ -1359,6 +1401,9 @@ private fun Sidebar(
     documents: List<Document>,
     selectedIndex: Int,
     onSelect: (Int) -> Unit,
+    recentFiles: List<RecentFile>,
+    openPaths: Set<String>,
+    onOpenRecent: (RecentFile) -> Unit,
     onNew: () -> Unit,
     onOpen: () -> Unit,
     onSave: () -> Unit,
@@ -1417,6 +1462,14 @@ private fun Sidebar(
                     }
                 }
             }
+            if (recentFiles.isNotEmpty()) {
+                Text(
+                    ui.recentFiles,
+                    Modifier.padding(start = 10.dp, top = 12.dp, bottom = 4.dp),
+                    color = colors.secondary, fontSize = 9.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 0.8.sp
+                )
+                recentFiles.forEach { recent -> RecentFileRow(recent, isOpen = recent.path in openPaths) { onOpenRecent(recent) } }
+            }
             fileMessage?.let {
                 Spacer(Modifier.height(8.dp))
                 Text(it, Modifier.fillMaxWidth().clip(RoundedCornerShape(7.dp)).background(colors.button).padding(9.dp), color = colors.secondary, fontSize = 10.sp)
@@ -1436,6 +1489,25 @@ private fun Sidebar(
         DividerLine(colors)
         Column(Modifier.fillMaxWidth().padding(horizontal = 15.dp, vertical = 8.dp)) {
             SidebarButton("⚙   ${ui.settings}", onSettings)
+        }
+    }
+}
+
+@Composable
+private fun RecentFileRow(file: RecentFile, isOpen: Boolean, onClick: () -> Unit) {
+    val colors = LocalKomdPalette.current
+    Row(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).clickable(onClick = onClick)
+            .padding(horizontal = 10.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text("↺", color = if (isOpen) colors.accent else colors.secondary, fontSize = 12.sp)
+        Spacer(Modifier.width(9.dp))
+        Column(Modifier.weight(1f)) {
+            Text(file.name, color = colors.foreground, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            parentDirectory(file.path)?.let { folder ->
+                Text(folder, color = colors.secondary, fontSize = 9.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
         }
     }
 }
