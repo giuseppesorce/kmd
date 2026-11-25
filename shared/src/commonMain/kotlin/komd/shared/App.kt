@@ -950,6 +950,14 @@ private fun AppContent(
                         if (textChanged) documents = documents.toMutableList().also { if (selectedIndex in it.indices) it[selectedIndex] = it[selectedIndex].copy(content = newValue.text) }
                     }, ui, editorZoom, { editorZoom = it }, editorScroll, paneModifier)
                 }
+                // Checkbox click in the preview: flip "[ ]" <-> "[x]" on that source line. Same length,
+                // so the editor selection stays valid; editor and preview both re-read `content`.
+                val toggleTask: (Int) -> Unit = { line ->
+                    toggleTaskAt(content, line)?.let { updated ->
+                        content = updated
+                        documents = documents.toMutableList().also { if (selectedIndex in it.indices) it[selectedIndex] = it[selectedIndex].copy(content = updated) }
+                    }
+                }
                 when {
                     documents.isEmpty() -> EmptyWorkspace(ui, onNew = newDocument, onOpen = openFile, modifier = Modifier.weight(1f).fillMaxWidth())
                     wide && workspaceMode == WorkspaceMode.Split -> Row(Modifier.weight(1f).fillMaxWidth()) {
@@ -959,9 +967,9 @@ private fun AppContent(
                             availableWidthPx = splitWidthPx,
                             onDrag = { delta -> splitRatio = (splitRatio + delta).coerceIn(0.2f, 0.8f) }
                         )
-                        PreviewPane(content, documentDirectory(), ui, previewZoom, { previewZoom = it }, previewScroll, syncScroll, { syncScroll = !syncScroll }, Modifier.weight(1f - splitRatio).fillMaxHeight())
+                        PreviewPane(content, documentDirectory(), ui, previewZoom, { previewZoom = it }, previewScroll, syncScroll, { syncScroll = !syncScroll }, toggleTask, Modifier.weight(1f - splitRatio).fillMaxHeight())
                     }
-                    workspaceMode == WorkspaceMode.Preview -> PreviewPane(content, documentDirectory(), ui, previewZoom, { previewZoom = it }, previewScroll, syncScroll, { syncScroll = !syncScroll }, Modifier.weight(1f).fillMaxWidth())
+                    workspaceMode == WorkspaceMode.Preview -> PreviewPane(content, documentDirectory(), ui, previewZoom, { previewZoom = it }, previewScroll, syncScroll, { syncScroll = !syncScroll }, toggleTask, Modifier.weight(1f).fillMaxWidth())
                     else -> editorPane(Modifier.weight(1f).fillMaxWidth())
                 }
                 if (wide) WorkspaceStatusBar(content, fileMessage, ui)
@@ -1633,6 +1641,7 @@ private fun PreviewPane(
     scrollState: ScrollState,
     syncScroll: Boolean,
     onToggleSyncScroll: () -> Unit,
+    onToggleTask: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val density = LocalDensity.current
@@ -1664,7 +1673,7 @@ private fun PreviewPane(
                         Text(ui.updatedNow, color = colors.secondary, fontSize = 9.sp)
                     }
                     Spacer(Modifier.height(22.dp))
-                    CompositionLocalProvider(LocalDocumentDirectory provides documentDirectory) {
+                    CompositionLocalProvider(LocalDocumentDirectory provides documentDirectory, LocalTaskToggle provides onToggleTask) {
                         MarkdownDocument(markdown, ui.imageUnsupported)
                     }
                 }

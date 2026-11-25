@@ -3,6 +3,11 @@ package komd.shared
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.input.pointer.PointerIcon
+import androidx.compose.ui.input.pointer.pointerHoverIcon
+import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.border
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -101,7 +106,8 @@ internal sealed interface MdBlock {
 
 internal enum class MdAlign { Left, Center, Right }
 
-internal data class BulletItem(val checked: Boolean?, val inlines: List<MdInline>)
+/** [line] is the 0-based source line of the item, used to toggle task items from the preview (-1 = unknown). */
+internal data class BulletItem(val checked: Boolean?, val inlines: List<MdInline>, val line: Int = -1)
 
 private val headingPattern = Regex("""^(#{1,6})[ \t]+(.+)$""")
 private val bulletPattern = Regex("""^[-*+][ \t]+(.+)$""")
@@ -111,6 +117,9 @@ private val thematicPattern = Regex("""^(?:(?:\*[ \t]*){3,}|(?:-[ \t]*){3,}|(?:_
 
 /** Folder of the previewed document: relative image sources are resolved against it. */
 internal val LocalDocumentDirectory = staticCompositionLocalOf<String?> { null }
+
+/** Called with the source line of a task item when its checkbox is clicked; null = read-only preview. */
+internal val LocalTaskToggle = staticCompositionLocalOf<((Int) -> Unit)?> { null }
 
 @Composable
 internal fun MarkdownDocument(markdown: String, imageUnsupported: String) {
@@ -159,7 +168,16 @@ private fun MarkdownBlock(block: MdBlock, imageUnsupported: String) {
                     if (item.checked == null) {
                         Text("•", Modifier.width(22.dp), color = colors.foreground, fontSize = 16.sp, lineHeight = 26.sp)
                     } else {
-                        TaskMark(item.checked, Modifier.padding(top = 4.dp, end = 10.dp))
+                        val onToggle = LocalTaskToggle.current
+                        val markModifier = Modifier.padding(top = 4.dp, end = 10.dp)
+                        TaskMark(
+                            item.checked,
+                            if (onToggle != null && item.line >= 0) {
+                                markModifier.clip(CircleShape)
+                                    .pointerHoverIcon(PointerIcon.Hand)
+                                    .toggleable(value = item.checked, role = Role.Checkbox) { onToggle(item.line) }
+                            } else markModifier
+                        )
                     }
                     RichText(item.inlines, bodyStyle(colors), colors.foreground, Modifier.weight(1f))
                 }
@@ -602,7 +620,8 @@ private fun stripOneQuoteMarker(line: String): String {
     return if (rest.startsWith(" ")) rest.substring(1) else rest
 }
 
-internal fun parseMarkdown(markdown: String): List<MdBlock> {
+/** [lineOffset]: source line of the first line of [markdown] (nested blockquotes are parsed separately). */
+internal fun parseMarkdown(markdown: String, lineOffset: Int = 0): List<MdBlock> {
     val lines = markdown.replace("\r\n", "\n").replace('\r', '\n').lines()
     val blocks = mutableListOf<MdBlock>()
     var index = 0
@@ -645,11 +664,12 @@ internal fun parseMarkdown(markdown: String): List<MdBlock> {
         }
         if (trimmed.startsWith(">")) {
             val quote = mutableListOf<String>()
+            val quoteStart = index
             while (index < lines.size && lines[index].trimStart().startsWith(">")) {
                 quote += stripOneQuoteMarker(lines[index])
                 index++
             }
-            blocks += MdBlock.Quote(parseMarkdown(quote.joinToString("\n")))
+            blocks += MdBlock.Quote(parseMarkdown(quote.joinToString("\n"), lineOffset + quoteStart))
             continue
         }
         if (index + 1 < lines.size && looksLikeTableRow(trimmed) && isTableSeparator(lines[index + 1].trim())) {
@@ -667,6 +687,7 @@ internal fun parseMarkdown(markdown: String): List<MdBlock> {
         if (bulletPattern.matches(trimmed)) {
             val items = mutableListOf<BulletItem>()
             while (index < lines.size && bulletPattern.matches(lines[index].trim())) {
+                val itemLine = lineOffset + index
                 val first = bulletPattern.matchEntire(lines[index].trim())!!.groupValues[1]
                 val task = taskPattern.matchEntire(first.trim())
                 val body = StringBuilder(if (task != null) task.groupValues[2] else first)
@@ -676,7 +697,7 @@ internal fun parseMarkdown(markdown: String): List<MdBlock> {
                     index++
                 }
                 val checked = if (task == null) null else task.groupValues[1].equals("x", ignoreCase = true)
-                items += BulletItem(checked, parseInlines(joinLines(body.lines())))
+                items += BulletItem(checked, parseInlines(joinLines(body.lines())), itemLine)
             }
             blocks += MdBlock.Bullets(items)
             continue
