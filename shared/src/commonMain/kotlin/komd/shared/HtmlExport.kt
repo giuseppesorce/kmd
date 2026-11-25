@@ -17,8 +17,21 @@ import androidx.compose.ui.text.style.TextDecoration
  *  - the caller writes [HtmlExport.html] and, only when [HtmlExport.images] is not empty, copies
  *    each image into an `images/` folder next to the .html file.
  *
+ * PDF export reuses the same renderer with [ExportMedium.Print]: local images become absolute
+ * file:// URIs (nothing is copied), the stylesheet is static (no CSS variables or dark mode, which
+ * the desktop PDF engine does not support) with A4 pages, and task checkboxes are drawn with CSS.
+ *
  * Everything here is pure (no I/O), so it is shared by all platforms and unit tested.
  */
+
+/** Where the exported HTML is meant to be shown. */
+internal enum class ExportMedium {
+    /** Standalone page opened in a browser: light/dark CSS, local images copied into `images/`. */
+    Web,
+
+    /** Input for the PDF renderer: static print CSS, A4 pages, local images as file:// URIs. */
+    Print,
+}
 
 /** Folder, next to the exported .html file, that receives the copied images. */
 internal const val EXPORT_IMAGES_DIR = "images"
@@ -32,10 +45,24 @@ internal data class HtmlExport(val html: String, val images: List<ExportedImage>
  * Renders [markdown] as a complete HTML page titled [title]. [documentDir] is the folder of the
  * saved .md (null when unsaved), used to resolve relative image paths.
  */
-internal fun buildHtmlExport(markdown: String, title: String, documentDir: String?): HtmlExport {
-    val images = ExportImageNames(documentDir)
-    val body = HtmlRenderer(images::sourceFor).blocks(parseMarkdown(markdown))
-    return HtmlExport(htmlPage(title, body), images.collected)
+internal fun buildHtmlExport(
+    markdown: String,
+    title: String,
+    documentDir: String?,
+    medium: ExportMedium = ExportMedium.Web,
+): HtmlExport {
+    val blocks = parseMarkdown(markdown)
+    return when (medium) {
+        ExportMedium.Web -> {
+            val images = ExportImageNames(documentDir)
+            val body = HtmlRenderer(images::sourceFor, medium).blocks(blocks)
+            HtmlExport(htmlPage(title, body, WEB_CSS), images.collected)
+        }
+        ExportMedium.Print -> {
+            val body = HtmlRenderer({ source -> resolveImageModel(source, documentDir) ?: source }, medium).blocks(blocks)
+            HtmlExport(htmlPage(title, body, PRINT_CSS), emptyList())
+        }
+    }
 }
 
 /** Assigns each distinct local image a unique file name inside [EXPORT_IMAGES_DIR]. */
@@ -64,7 +91,9 @@ private class ExportImageNames(private val documentDir: String?) {
     }
 }
 
-private class HtmlRenderer(private val imageSource: (String) -> String) {
+private class HtmlRenderer(private val imageSource: (String) -> String, private val medium: ExportMedium) {
+
+    private val monoFamily = if (medium == ExportMedium.Print) PRINT_MONO else "var(--mono)"
 
     fun blocks(blocks: List<MdBlock>): String = buildString { blocks.forEach { block(it) } }
 
@@ -78,8 +107,11 @@ private class HtmlRenderer(private val imageSource: (String) -> String) {
                 append(if (tasks) "<ul class=\"tasks\">\n" else "<ul>\n")
                 block.items.forEach { item ->
                     append("<li>")
-                    if (item.checked != null) {
-                        append("<input type=\"checkbox\" disabled").append(if (item.checked) " checked" else "").append("> ")
+                    when {
+                        item.checked == null -> Unit
+                        // Form controls are not drawn by the PDF engine: a CSS box looks the same everywhere.
+                        medium == ExportMedium.Print -> append(if (item.checked) "<span class=\"box on\"></span>" else "<span class=\"box\"></span>")
+                        else -> append("<input type=\"checkbox\" disabled").append(if (item.checked) " checked" else "").append("> ")
                     }
                     append(inlines(item.inlines)).append("</li>\n")
                 }
@@ -150,7 +182,7 @@ private class HtmlRenderer(private val imageSource: (String) -> String) {
                 is MdInline.Image -> append("<img src=\"").append(escapeAttribute(imageSource(item.source)))
                     .append("\" alt=\"").append(escapeAttribute(item.alt)).append("\">")
                 is MdInline.Styled -> {
-                    val css = cssOf(item.look)
+                    val css = cssOf(item.look, monoFamily)
                     if (css.isEmpty()) append(inlines(item.children))
                     else append("<span style=\"").append(escapeAttribute(css)).append("\">").append(inlines(item.children)).append("</span>")
                 }
@@ -160,7 +192,7 @@ private class HtmlRenderer(private val imageSource: (String) -> String) {
 }
 
 /** Inline CSS equivalent of the preview's [InlineLook] (from `<mark>`, `<kbd>`, `<span style>`…). */
-private fun cssOf(look: InlineLook): String = buildList {
+private fun cssOf(look: InlineLook, monoFamily: String): String = buildList {
     look.color?.let { add("color:${cssColor(it)}") }
     look.background?.let { add("background:${cssColor(it)}") }
     look.fontWeight?.let { add("font-weight:${it.weight}") }
@@ -175,7 +207,7 @@ private fun cssOf(look: InlineLook): String = buildList {
         InlineBaseline.Sub -> add("vertical-align:sub")
         InlineBaseline.None -> Unit
     }
-    if (look.monospace) add("font-family:var(--mono)")
+    if (look.monospace) add("font-family:$monoFamily")
     if (look.scale != 1f) add("font-size:${(look.scale * 100).toInt()}%")
     if (look.pad) add("padding:0 .3em;border-radius:4px")
 }.joinToString(";")
@@ -204,7 +236,7 @@ private fun encodePathSegment(segment: String): String = buildString {
     }
 }
 
-private fun htmlPage(title: String, body: String): String = """<!DOCTYPE html>
+private fun htmlPage(title: String, body: String, css: String): String = """<!DOCTYPE html>
 <html>
 <head>
 <meta charset="utf-8">
@@ -212,7 +244,16 @@ private fun htmlPage(title: String, body: String): String = """<!DOCTYPE html>
 <meta name="generator" content="KoMD">
 <title>${escapeText(title)}</title>
 <style>
-:root { --fg:#1f2328; --muted:#59636e; --border:#d1d9e0; --code-bg:#f6f8fa; --link:#0969da; --bg:#ffffff;
+$css</style>
+</head>
+<body>
+<main>
+$body</main>
+</body>
+</html>
+"""
+
+private const val WEB_CSS = """:root { --fg:#1f2328; --muted:#59636e; --border:#d1d9e0; --code-bg:#f6f8fa; --link:#0969da; --bg:#ffffff;
   --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace; color-scheme: light dark; }
 @media (prefers-color-scheme: dark) {
   :root { --fg:#e6edf3; --muted:#9198a1; --border:#3d444d; --code-bg:#151b23; --link:#4493f8; --bg:#0d1117; }
@@ -237,11 +278,35 @@ th { font-weight:600; background:var(--code-bg); }
 hr { border:0; border-top:1px solid var(--border); margin:1.5em 0; }
 ul.tasks { list-style:none; padding-left:.4em; }
 ul.tasks input { margin:0 .4em 0 0; vertical-align:middle; }
-</style>
-</head>
-<body>
-<main>
-$body</main>
-</body>
-</html>
+"""
+
+/**
+ * Families registered by the desktop PDF writer ("KoMd Sans"/"KoMd Mono", see `PdfExport.desktop.kt`)
+ * come first; the rest is the usual fallback for engines that resolve system fonts by name.
+ */
+private const val PRINT_SANS = "\"KoMd Sans\", \"KoMd Unicode\", -apple-system, \"Helvetica Neue\", Arial, sans-serif"
+internal const val PRINT_MONO = "\"KoMd Mono\", \"KoMd Unicode\", Menlo, Consolas, monospace"
+
+private const val PRINT_CSS = """@page { size: A4; margin: 20mm 18mm 22mm;
+  @bottom-center { content: counter(page) " / " counter(pages); font-family: $PRINT_SANS; font-size: 8.5pt; color: #8c959f; } }
+body { margin:0; color:#1f2328; font-family: $PRINT_SANS; font-size: 10.5pt; line-height: 1.55; }
+h1, h2, h3, h4, h5, h6 { line-height:1.25; margin:1.4em 0 .55em; page-break-after: avoid; }
+h1 { font-size:2em; margin-top:0; } h2 { font-size:1.5em; border-bottom:1px solid #d1d9e0; padding-bottom:.3em; }
+h3 { font-size:1.25em; } h4, h5, h6 { font-size:1em; }
+p, ul, ol, blockquote, pre, table { margin:0 0 1em; }
+a { color:#0969da; text-decoration:none; }
+img { max-width:100%; }
+p.image { page-break-inside: avoid; }
+blockquote { margin-left:0; padding:0 1em; color:#59636e; border-left:3pt solid #d1d9e0; }
+code { font-family: $PRINT_MONO; font-size:.88em; background:#f6f8fa; padding:.1em .3em; border-radius:3pt; }
+pre { background:#f6f8fa; padding:10pt 12pt; border-radius:6pt; line-height:1.45; white-space: pre-wrap; word-wrap: break-word; }
+pre code { background:none; padding:0; font-size:.85em; }
+table { border-collapse:collapse; }
+tr { page-break-inside: avoid; }
+th, td { border:1px solid #d1d9e0; padding:4pt 9pt; }
+th { font-weight:bold; background:#f6f8fa; }
+hr { border:0; border-top:1px solid #d1d9e0; margin:1.5em 0; }
+ul.tasks { list-style:none; padding-left:.4em; }
+.box { display:inline-block; width:.75em; height:.75em; margin-right:.45em; border:1.2pt solid #8c959f; border-radius:2pt; }
+.box.on { background:#0969da; border-color:#0969da; }
 """

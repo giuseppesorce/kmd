@@ -40,6 +40,10 @@ kotlin {
         getByName("iosArm64Main").dependencies { implementation(libs.ktor.client.darwin) }
         getByName("iosSimulatorArm64Main").dependencies { implementation(libs.ktor.client.darwin) }
         getByName("desktopMain").dependencies { implementation(compose.desktop.currentOs) }
-        getByName("desktopMain").dependencies { implementation(libs.ktor.client.java) }
+        getByName("desktopMain").dependencies {
+            implementation(libs.ktor.client.java)
+            implementation(libs.openhtmltopdf.pdfbox)
+            implementation(libs.jsoup)
+        }
     }
 }

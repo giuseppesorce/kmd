@@ -251,6 +251,7 @@ internal data class AppStrings(
     val noDocuments: String,
     val noDocumentsHint: String,
     val exportHtml: String,
+    val exportPdf: String,
     val exported: String,
     val exportedWithImages: String,
     val exportImagesSkipped: String,
@@ -295,7 +296,7 @@ internal val italianStrings = AppStrings(
     unsavedMessage = "Vuoi salvare le modifiche a \"{name}\" prima di chiuderlo?", dontSave = "Non salvare",
     exitUnsavedMessage = "Documenti con modifiche non salvate: {count}. Se esci andranno perse.", exitWithoutSaving = "Esci senza salvare",
     noDocuments = "Nessun documento aperto", noDocumentsHint = "Crea un nuovo documento o aprine uno dal disco.",
-    exportHtml = "Esporta HTML…", exported = "Esportato {name}", exportedWithImages = "Esportato {name} con {count} immagini nella cartella images",
+    exportHtml = "Esporta HTML…", exportPdf = "Esporta PDF…", exported = "Esportato {name}", exportedWithImages = "Esportato {name} con {count} immagini nella cartella images",
     exportImagesSkipped = "Esportato {name}, ma {count} immagini non sono state copiate", exportFailure = "Impossibile esportare: {error}",
     recentFiles = "RECENTI", missingFileTitle = "File non trovato", missingFileMessage = "Il file “{name}” non è più presente in:\n{path}\n\nForse è stato spostato, rinominato o eliminato. Verrà rimosso dalla lista dei recenti.", ok = "OK",
 )
@@ -334,7 +335,7 @@ private val englishStrings = AppStrings(
     unsavedMessage = "Do you want to save the changes to \"{name}\" before closing it?", dontSave = "Don't save",
     exitUnsavedMessage = "Documents with unsaved changes: {count}. They will be lost if you quit.", exitWithoutSaving = "Quit without saving",
     noDocuments = "No open documents", noDocumentsHint = "Create a new document or open one from disk.",
-    exportHtml = "Export HTML…", exported = "Exported {name}", exportedWithImages = "Exported {name} with {count} images in the images folder",
+    exportHtml = "Export HTML…", exportPdf = "Export PDF…", exported = "Exported {name}", exportedWithImages = "Exported {name} with {count} images in the images folder",
     exportImagesSkipped = "Exported {name}, but {count} images could not be copied", exportFailure = "Could not export: {error}",
     recentFiles = "RECENT", missingFileTitle = "File not found", missingFileMessage = "The file “{name}” is no longer at:\n{path}\n\nIt may have been moved, renamed or deleted. It will be removed from the recent files list.", ok = "OK",
 )
@@ -373,7 +374,7 @@ private val frenchStrings = AppStrings(
     unsavedMessage = "Voulez-vous enregistrer les modifications de « {name} » avant de le fermer ?", dontSave = "Ne pas enregistrer",
     exitUnsavedMessage = "Documents avec des modifications non enregistrées : {count}. Elles seront perdues si vous quittez.", exitWithoutSaving = "Quitter sans enregistrer",
     noDocuments = "Aucun document ouvert", noDocumentsHint = "Créez un nouveau document ou ouvrez-en un depuis le disque.",
-    exportHtml = "Exporter en HTML…", exported = "{name} exporté", exportedWithImages = "{name} exporté avec {count} images dans le dossier images",
+    exportHtml = "Exporter en HTML…", exportPdf = "Exporter en PDF…", exported = "{name} exporté", exportedWithImages = "{name} exporté avec {count} images dans le dossier images",
     exportImagesSkipped = "{name} exporté, mais {count} images n’ont pas pu être copiées", exportFailure = "Impossible d’exporter : {error}",
     recentFiles = "RÉCENTS", missingFileTitle = "Fichier introuvable", missingFileMessage = "Le fichier « {name} » n’est plus présent à l’emplacement :\n{path}\n\nIl a peut-être été déplacé, renommé ou supprimé. Il sera retiré de la liste des fichiers récents.", ok = "OK",
 )
@@ -412,7 +413,7 @@ private val spanishStrings = AppStrings(
     unsavedMessage = "¿Quieres guardar los cambios en «{name}» antes de cerrarlo?", dontSave = "No guardar",
     exitUnsavedMessage = "Documentos con cambios sin guardar: {count}. Se perderán si sales.", exitWithoutSaving = "Salir sin guardar",
     noDocuments = "No hay documentos abiertos", noDocumentsHint = "Crea un documento nuevo o abre uno desde el disco.",
-    exportHtml = "Exportar HTML…", exported = "Exportado {name}", exportedWithImages = "Exportado {name} con {count} imágenes en la carpeta images",
+    exportHtml = "Exportar HTML…", exportPdf = "Exportar PDF…", exported = "Exportado {name}", exportedWithImages = "Exportado {name} con {count} imágenes en la carpeta images",
     exportImagesSkipped = "Exportado {name}, pero no se pudieron copiar {count} imágenes", exportFailure = "No se pudo exportar: {error}",
     recentFiles = "RECIENTES", missingFileTitle = "Archivo no encontrado", missingFileMessage = "El archivo «{name}» ya no está en:\n{path}\n\nPuede que se haya movido, renombrado o eliminado. Se quitará de la lista de recientes.", ok = "Aceptar",
 )
@@ -451,7 +452,7 @@ private val germanStrings = AppStrings(
     unsavedMessage = "Möchtest du die Änderungen an „{name}“ vor dem Schließen speichern?", dontSave = "Nicht speichern",
     exitUnsavedMessage = "Dokumente mit nicht gespeicherten Änderungen: {count}. Sie gehen beim Beenden verloren.", exitWithoutSaving = "Ohne Speichern beenden",
     noDocuments = "Keine geöffneten Dokumente", noDocumentsHint = "Erstelle ein neues Dokument oder öffne eines von der Festplatte.",
-    exportHtml = "Als HTML exportieren…", exported = "{name} exportiert", exportedWithImages = "{name} mit {count} Bildern im Ordner images exportiert",
+    exportHtml = "Als HTML exportieren…", exportPdf = "Als PDF exportieren…", exported = "{name} exportiert", exportedWithImages = "{name} mit {count} Bildern im Ordner images exportiert",
     exportImagesSkipped = "{name} exportiert, aber {count} Bilder konnten nicht kopiert werden", exportFailure = "Export fehlgeschlagen: {error}",
     recentFiles = "ZULETZT", missingFileTitle = "Datei nicht gefunden", missingFileMessage = "Die Datei „{name}“ befindet sich nicht mehr unter:\n{path}\n\nSie wurde möglicherweise verschoben, umbenannt oder gelöscht. Sie wird aus der Liste der zuletzt verwendeten Dateien entfernt.", ok = "OK",
 )
@@ -824,6 +825,36 @@ private fun AppContent(
             }
         }
     )
+    // --- Export PDF (desktop only): print HTML built when the dialog opens, rendered and written on its result ---
+    var pendingPdf by remember { mutableStateOf<PendingPdf?>(null) }
+    val pdfSaver = rememberFileSaverLauncher(
+        dialogSettings = FileKitDialogSettings.createDefault(),
+        onError = {
+            pendingPdf = null
+            fileMessage = ui.exportFailure.replace("{error}", it.message ?: ui.unknownError)
+        },
+        onResult = { file ->
+            val pending = pendingPdf
+            pendingPdf = null
+            if (file != null && pending != null) scope.launch {
+                runCatching { writePdfExport(file, pending) }
+                    .onSuccess { fileMessage = ui.exported.replace("{name}", file.name) }
+                    .onFailure { fileMessage = ui.exportFailure.replace("{error}", it.message ?: ui.unknownError) }
+            }
+        }
+    )
+    val exportPdf: () -> Unit = export@{
+        if (!pdfExportSupported) return@export
+        val document = documents.getOrNull(selectedIndex) ?: return@export
+        val title = document.name.substringBeforeLast('.').ifBlank { ui.untitledTitle }
+        val directory = documentDirectory()
+        fileMessage = null
+        pendingPdf = PendingPdf(
+            html = buildHtmlExport(latestContent, title, directory, ExportMedium.Print).html,
+            baseUri = directory?.let(::directoryFileUri),
+        )
+        pdfSaver.launch(suggestedName = title, defaultExtension = "pdf", allowedExtensions = setOf("pdf"))
+    }
     val exportHtml: () -> Unit = export@{
         val document = documents.getOrNull(selectedIndex) ?: return@export
         val title = document.name.substringBeforeLast('.').ifBlank { ui.untitledTitle }
@@ -951,6 +982,7 @@ private fun AppContent(
                 save = { saveFile(true) },
                 saveAs = { saveFile(false) },
                 exportHtml = exportHtml,
+                exportPdf = exportPdf,
                 close = closeCurrent,
                 requestExit = requestExit,
                 find = openSearch,
@@ -1008,6 +1040,7 @@ private fun AppContent(
                     onSave = { saveFile(true) },
                     onSaveAs = { saveFile(false) },
                     onExportHtml = exportHtml,
+                    onExportPdf = exportPdf,
                     fileMessage = fileMessage,
                     onInsert = insertAtCursor,
                     onFormat = applyFormat,
@@ -1040,6 +1073,7 @@ private fun AppContent(
                     onOpen = { fileMessage = null; picker.launch() },
                     onSave = { saveFile(true) },
                     onExportHtml = exportHtml,
+                    onExportPdf = exportPdf,
                     wide = wide,
                     previewActive = workspaceMode == WorkspaceMode.Preview,
                     onPreviewToggle = {
@@ -1347,6 +1381,7 @@ private fun AppTopBar(
     onOpen: () -> Unit,
     onSave: () -> Unit,
     onExportHtml: () -> Unit,
+    onExportPdf: () -> Unit,
     onPreviewToggle: () -> Unit,
     previewActive: Boolean,
     wide: Boolean,
@@ -1366,6 +1401,7 @@ private fun AppTopBar(
                 SmallButton("↓") { onOpen() }
                 SmallButton("↥") { onSave() }
                 SmallButton("HTML") { onExportHtml() }
+                if (pdfExportSupported) SmallButton("PDF") { onExportPdf() }
                 SmallButton(if (previewActive) ui.editor else ui.preview) { onPreviewToggle() }
                 SearchToggleButton(searchOpen, ui.find, onSearchToggle, Modifier.padding(horizontal = 3.dp))
             } else {
@@ -1507,6 +1543,7 @@ private fun Sidebar(
     onSave: () -> Unit,
     onSaveAs: () -> Unit,
     onExportHtml: () -> Unit,
+    onExportPdf: () -> Unit,
     fileMessage: String?,
     onInsert: (String) -> Unit,
     onFormat: (FormatAction) -> Unit,
@@ -1536,6 +1573,7 @@ private fun Sidebar(
                 SidebarUtilityButton(ui.save, Modifier.fillMaxWidth(), onSave)
                 SidebarUtilityButton(ui.saveAs, Modifier.fillMaxWidth(), onSaveAs)
                 SidebarUtilityButton(ui.exportHtml, Modifier.fillMaxWidth(), onExportHtml)
+                if (pdfExportSupported) SidebarUtilityButton(ui.exportPdf, Modifier.fillMaxWidth(), onExportPdf)
             }
             Spacer(Modifier.height(22.dp))
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
