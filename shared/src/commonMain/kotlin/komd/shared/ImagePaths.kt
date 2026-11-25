@@ -161,6 +161,10 @@ private fun isRelativeSource(source: String): Boolean =
     source.isNotBlank() && !source.startsWith("/") && !source.startsWith("\\") && !source.startsWith("#") &&
         parseAbsolutePath(source) == null && !schemePattern.containsMatchIn(source)
 
+/** file:// URI of the folder [directory] with a trailing slash (a base URI for relative links), or null for non-filesystem paths. */
+internal fun directoryFileUri(directory: String): String? =
+    parseAbsolutePath(directory)?.let(::absoluteFileUri)?.let { if (it.endsWith("/")) it else "$it/" }
+
 private fun absoluteFileUri(path: FsPath): String =
     // fileUri keeps '/' and ':', so Windows paths become file:///C:/…
     fileUri(if (path.root.isEmpty()) path.render() else "/" + path.render())

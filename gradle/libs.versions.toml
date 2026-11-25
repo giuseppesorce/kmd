@@ -6,6 +6,8 @@ composeMaterial3 = "1.12.0-alpha03"
 filekit = "0.17.0"
 coil = "3.6.3"
 ktor = "3.1.0"
+openhtmltopdf = "1.1.117"
+jsoup = "1.24.1"
 activityCompose = "1.12.2"
 androidCompileSdk = "37"
 androidMinSdk = "24"
@@ -24,6 +26,8 @@ coil-network-ktor3 = { module = "io.coil-kt.coil3:coil-network-ktor3", version.r
 ktor-client-android = { module = "io.ktor:ktor-client-android", version.ref = "ktor" }
 ktor-client-darwin = { module = "io.ktor:ktor-client-darwin", version.ref = "ktor" }
 ktor-client-java = { module = "io.ktor:ktor-client-java", version.ref = "ktor" }
+openhtmltopdf-pdfbox = { module = "io.github.openhtmltopdf:openhtmltopdf-pdfbox", version.ref = "openhtmltopdf" }
+jsoup = { module = "org.jsoup:jsoup", version.ref = "jsoup" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }
