@@ -115,3 +115,20 @@ compose.desktop {
         }
     }
 }
+
+// Installers end up in <repo>/launcher, flat (e.g. launcher/KoMD-1.0.0.dmg), so they are easy to find
+// without digging into build/compose/binaries/<main|main-release>/<format>/. jpackage still writes
+// them under build/ first (createDistributable needs that layout); this task copies only the
+// installer files after any package* task runs.
+val copyInstallersToLauncher = tasks.register<Copy>("copyInstallersToLauncher") {
+    from(layout.buildDirectory.dir("compose/binaries")) {
+        include("**/*.dmg", "**/*.msi", "**/*.deb")
+        eachFile { path = name }
+    }
+    includeEmptyDirs = false
+    into(rootProject.layout.projectDirectory.dir("launcher"))
+}
+
+tasks.matching { it.name.matches(Regex("package(Release)?(Dmg|Msi|Deb)")) }.configureEach {
+    finalizedBy(copyInstallersToLauncher)
+}
