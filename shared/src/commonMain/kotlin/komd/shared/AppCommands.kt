@@ -28,6 +28,9 @@ class AppCommands {
     /** Exports the current document as HTML (plus an `images/` folder when it has local images). */
     fun exportHtml() { target?.exportHtml?.invoke() }
 
+    /** Opens (or focuses) the in-document search field. */
+    fun find() { target?.find?.invoke() }
+
     /** Closes the current document, or asks to exit when no document is open. */
     fun close() { target?.close?.invoke() }
 
@@ -42,6 +45,7 @@ class AppCommands {
         val exportHtml: () -> Unit,
         val close: () -> Unit,
         val requestExit: () -> Unit,
+        val find: () -> Unit,
     )
 }
 
@@ -53,6 +57,8 @@ data class MenuLabels(
     val save: String,
     val saveAs: String,
     val exportHtml: String,
+    val edit: String,
+    val find: String,
 ) {
     internal companion object {
         fun fromStrings(strings: AppStrings) = MenuLabels(
@@ -63,6 +69,8 @@ data class MenuLabels(
             save = strings.save,
             saveAs = strings.saveAs,
             exportHtml = strings.exportHtml,
+            edit = strings.menuEdit,
+            find = strings.find,
         )
     }
 }

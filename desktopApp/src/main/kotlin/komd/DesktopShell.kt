@@ -16,7 +16,7 @@ private fun shortcut(key: Key, shift: Boolean = false) =
     KeyShortcut(key, meta = isMacOs, ctrl = !isMacOs, shift = shift)
 
 /**
- * File menu with the editor shortcuts. On macOS it is shown in the system menu bar
+ * File and Edit menus with the editor shortcuts. On macOS it is shown in the system menu bar
  * (see `apple.laf.useScreenMenuBar` in main), on Windows/Linux inside the window.
  */
 @Composable
@@ -32,6 +32,9 @@ fun FrameWindowScope.KomdMenuBar(commands: AppCommands) {
             Item(labels.saveAs, shortcut = shortcut(Key.S, shift = true), onClick = commands::saveAs)
             Separator()
             Item(labels.exportHtml, shortcut = shortcut(Key.E, shift = true), onClick = commands::exportHtml)
+        }
+        Menu(labels.edit, mnemonic = 'E') {
+            Item(labels.find, shortcut = shortcut(Key.F), onClick = commands::find)
         }
     }
 }
