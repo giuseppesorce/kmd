@@ -7,6 +7,6 @@ local.properties
 iosApp/iosApp.xcodeproj/project.xcworkspace/xcuserdata/
 iosApp/iosApp.xcodeproj/xcuserdata/
 # Installers copied by :desktopApp:copyInstallersToLauncher (tens of MB each, not versioned)
-launcher/*.dmg
-launcher/*.msi
-launcher/*.deb
+installer/*.dmg
+installer/*.msi
+installer/*.deb
