@@ -39,7 +39,7 @@ jobs:
         if: env.MSIX_IDENTITY_NAME != ''
         shell: pwsh
         run: ./desktopApp/msix/pack-msix.ps1
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v6
         with:
           name: KoMD-windows
           path: |
@@ -76,23 +76,52 @@ jobs:
           security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
           rm "$RUNNER_TEMP/cert.p12"
           echo "SIGNING_KEYCHAIN=$KEYCHAIN" >> "$GITHUB_ENV"
-      - name: Build, sign and notarize .dmg
+      - name: Build and sign .dmg
         if: env.MACOS_CERTIFICATE_P12 != ''
         env:
           MACOS_SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY }}
+        # Compose signs the .app (hardened runtime + its default JVM entitlements) and the .dmg.
+        run: |
+          # Compose adds the "Developer ID Application: " prefix itself: accept the secret with or
+          # without it, otherwise the lookup becomes "Developer ID Application: Developer ID …".
+          IDENTITY="${MACOS_SIGNING_IDENTITY#Developer ID Application: }"
+          echo "Signing identities in the keychain:"
+          security find-identity -v -p codesigning "$SIGNING_KEYCHAIN"
+          ./gradlew :desktopApp:packageDmg --stacktrace \
+            -Pcompose.desktop.mac.sign=true \
+            -Pcompose.desktop.mac.signing.identity="$IDENTITY" \
+            -Pcompose.desktop.mac.signing.keychain="$SIGNING_KEYCHAIN"
+      - name: Notarize and staple .dmg
+        if: env.MACOS_CERTIFICATE_P12 != ''
+        env:
           NOTARIZATION_APPLE_ID: ${{ secrets.NOTARIZATION_APPLE_ID }}
           NOTARIZATION_PASSWORD: ${{ secrets.NOTARIZATION_PASSWORD }}
           NOTARIZATION_TEAM_ID: ${{ secrets.NOTARIZATION_TEAM_ID }}
-        # Compose signs the .app (hardened runtime + its default JVM entitlements), builds the
-        # .dmg, then notarizeDmg submits it with notarytool, waits and staples the ticket.
+        # notarytool is called directly (instead of Compose's notarizeDmg) so that Apple's answer
+        # ends up in this log: auth errors, a missing agreement, or the per-file issues of an
+        # "Invalid" submission (notarytool log).
         run: |
-          ./gradlew :desktopApp:packageDmg :desktopApp:notarizeDmg --stacktrace \
-            -Pcompose.desktop.mac.sign=true \
-            -Pcompose.desktop.mac.signing.identity="$MACOS_SIGNING_IDENTITY" \
-            -Pcompose.desktop.mac.signing.keychain="$SIGNING_KEYCHAIN" \
-            -Pcompose.desktop.mac.notarization.appleID="$NOTARIZATION_APPLE_ID" \
-            -Pcompose.desktop.mac.notarization.password="$NOTARIZATION_PASSWORD" \
-            -Pcompose.desktop.mac.notarization.teamID="$NOTARIZATION_TEAM_ID"
+          set -u
+          DMG=$(ls installer/*.dmg)
+          AUTH=(--apple-id "$NOTARIZATION_APPLE_ID" --team-id "$NOTARIZATION_TEAM_ID" --password "$NOTARIZATION_PASSWORD")
+          set +e
+          xcrun notarytool submit "$DMG" "${AUTH[@]}" --wait --timeout 30m --output-format json > notary.json 2> notary.err
+          CODE=$?
+          set -e
+          echo "notarytool exit code: $CODE"
+          echo "--- stdout"; cat notary.json; echo
+          echo "--- stderr"; cat notary.err
+          ID=$(python3 -c 'import json;print(json.load(open("notary.json")).get("id",""))' 2>/dev/null || true)
+          STATUS=$(python3 -c 'import json;print(json.load(open("notary.json")).get("status",""))' 2>/dev/null || true)
+          if [ -n "$ID" ] && [ "$STATUS" != "Accepted" ]; then
+            echo "--- notarytool log $ID"
+            xcrun notarytool log "$ID" "${AUTH[@]}" || true
+          fi
+          if [ "$STATUS" != "Accepted" ]; then
+            echo "::error::Notarization failed (status: ${STATUS:-none}, exit $CODE). See the output above."
+            exit 1
+          fi
+          xcrun stapler staple "$DMG"
       - name: Verify signature, notarization ticket and Gatekeeper
         if: env.MACOS_CERTIFICATE_P12 != ''
         run: |
@@ -106,7 +135,7 @@ jobs:
       - name: Remove temporary keychain
         if: always() && env.SIGNING_KEYCHAIN != ''
         run: security delete-keychain "$SIGNING_KEYCHAIN"
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v6
         with:
           name: KoMD-macos
           path: installer/*.dmg
@@ -125,7 +154,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@v5
       - name: Build .deb
         run: ./gradlew :desktopApp:packageDeb --stacktrace
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v6
         with:
           name: KoMD-linux
           path: installer/*.deb
