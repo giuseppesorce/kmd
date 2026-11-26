@@ -192,7 +192,7 @@ internal fun renderedText(inlines: List<MdInline>): String = buildString {
 @Composable
 private fun MarkdownBlock(block: MdBlock, imageUnsupported: String, base: Int = 0) {
     val query = LocalPreviewSearch.current?.query.orEmpty()
-    val colors = LocalKomdPalette.current
+    val colors = KomdTheme.colors
     when (block) {
         is MdBlock.Heading -> {
             val (size, line, top, bottom, weight) = when (block.level) {
@@ -203,8 +203,8 @@ private fun MarkdownBlock(block: MdBlock, imageUnsupported: String, base: Int = 
             }
             RichText(
                 block.inlines,
-                TextStyle(color = colors.foreground, fontSize = size, lineHeight = line, fontWeight = weight),
-                colors.foreground,
+                TextStyle(color = colors.heading, fontSize = size, lineHeight = line, fontWeight = weight),
+                colors.heading,
                 Modifier.fillMaxWidth().padding(top = top, bottom = bottom),
                 base = base
             )
@@ -217,7 +217,7 @@ private fun MarkdownBlock(block: MdBlock, imageUnsupported: String, base: Int = 
             base = base
         )
         is MdBlock.Quote -> {
-            val bar = if (colors.background.luminance() > 0.5f) Color(0xFFD0D5DD) else Color(0xFF5C6B7E)
+            val bar = colors.accent
             Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min).padding(top = 4.dp, bottom = 16.dp)) {
                 Box(Modifier.width(3.dp).fillMaxHeight().clip(RoundedCornerShape(2.dp)).background(bar))
                 Column(Modifier.weight(1f).padding(start = 16.dp)) {
@@ -236,7 +236,7 @@ private fun MarkdownBlock(block: MdBlock, imageUnsupported: String, base: Int = 
                 itemBase += richCount(item.inlines, query)
                 Row(Modifier.fillMaxWidth().padding(bottom = 10.dp), verticalAlignment = Alignment.Top) {
                     if (item.checked == null) {
-                        Text("•", Modifier.width(22.dp), color = colors.foreground, fontSize = 16.sp, lineHeight = 26.sp)
+                        Text("•", Modifier.width(22.dp), color = colors.accent, fontSize = 16.sp, lineHeight = 26.sp)
                     } else {
                         val onToggle = LocalTaskToggle.current
                         val markModifier = Modifier.padding(top = 4.dp, end = 10.dp)
@@ -290,8 +290,10 @@ private data class HeadingStyle(
 
 @Composable
 private fun TaskMark(checked: Boolean, modifier: Modifier = Modifier) {
-    val fill = Color(0xFF2F80ED)
-    val ring = Color(0xFFC5CAD3)
+    val colors = KomdTheme.colors
+    val fill = colors.accent
+    val ring = colors.faint
+    val check = colors.onAccent
     Canvas(modifier.size(18.dp)) {
         if (checked) {
             drawCircle(fill)
@@ -302,7 +304,7 @@ private fun TaskMark(checked: Boolean, modifier: Modifier = Modifier) {
             }
             drawPath(
                 mark,
-                Color.White,
+                check,
                 style = Stroke(width = 1.8.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
             )
         } else {
@@ -322,20 +324,22 @@ private fun CodeBlock(code: String, base: Int = 0) {
             copied = false
         }
     }
-    val shape = RoundedCornerShape(12.dp)
+    val colors = KomdTheme.colors
+    val shape = RoundedCornerShape(8.dp)
     Box(
         Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 16.dp)
             .clip(shape)
-            .border(1.dp, Color(0xFFD5DBE3), shape)
-            .background(Color(0xFFF2F4F8))
+            .border(1.dp, colors.divider, shape)
+            .background(colors.codeBackground)
     ) {
-        val syntax = remember(code) { highlightCode(code.ifEmpty { " " }) }
+        val palette = if (colors.isDark) darkCodePalette else lightCodePalette
+        val syntax = remember(code, palette) { highlightCode(code.ifEmpty { " " }, palette) }
         val hit = rememberSearchHighlight(syntax, base)
         Text(
             hit.text,
             Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(start = 18.dp, end = 88.dp, top = 16.dp, bottom = 16.dp).then(hit.modifier),
             onTextLayout = hit.onTextLayout,
-            color = Color(0xFF1E3A5F),
+            color = colors.codeText,
             fontFamily = FontFamily.Monospace,
             fontSize = 13.5.sp,
             lineHeight = 22.sp
@@ -344,26 +348,31 @@ private fun CodeBlock(code: String, base: Int = 0) {
             if (copied) ui.copied else ui.copyCode,
             Modifier.align(Alignment.TopEnd).padding(8.dp)
                 .clip(RoundedCornerShape(7.dp))
-                .background(Color.White)
-                .border(1.dp, Color(0xFFD5DBE3), RoundedCornerShape(7.dp))
+                .background(colors.background)
+                .border(1.dp, colors.divider, RoundedCornerShape(7.dp))
                 .clickable {
                     clipboard.setText(AnnotatedString(code))
                     copied = true
                 }
                 .padding(horizontal = 10.dp, vertical = 5.dp),
-            color = Color(0xFF3B4A5A),
+            color = colors.secondary,
             fontSize = 12.sp,
             fontWeight = FontWeight.Medium
         )
     }
 }
 
-private val codeKeyword = Color(0xFF3B5BDB)
-private val codeDeclare = Color(0xFF7048E8)
-private val codeReturn = Color(0xFFE03131)
-private val codeString = Color(0xFF1C7ED6)
-private val codeComment = Color(0xFF868E96)
-private val codeNumber = Color(0xFFE8590C)
+/** Syntax colors of code blocks, tuned for the Ink light and dark surfaces. */
+private data class CodePalette(val keyword: Color, val declare: Color, val returns: Color, val string: Color, val comment: Color, val number: Color)
+
+private val lightCodePalette = CodePalette(
+    keyword = Color(0xFF0A84C2), declare = Color(0xFF17345A), returns = Color(0xFFC2410C),
+    string = Color(0xFF0F7B6C), comment = Color(0xFF8A93A6), number = Color(0xFFB45309),
+)
+private val darkCodePalette = CodePalette(
+    keyword = Color(0xFF7DCBF5), declare = Color(0xFFB4C6FF), returns = Color(0xFFFFA48A),
+    string = Color(0xFF7FD6C2), comment = Color(0xFF6B7891), number = Color(0xFFF5C27D),
+)
 
 private val codeDeclarations = setOf("def", "class", "fun", "function", "fn", "func", "interface", "struct", "enum", "trait")
 private val codeReturns = setOf("return", "yield", "throw", "raise")
@@ -376,14 +385,14 @@ private val codeWords = setOf(
     "use", "mod", "match", "loop", "where", "data", "sealed", "override", "open"
 )
 
-private fun highlightCode(code: String) = buildAnnotatedString {
+private fun highlightCode(code: String, palette: CodePalette) = buildAnnotatedString {
     var index = 0
     while (index < code.length) {
         val char = code[index]
         when {
             char == '#' || (char == '/' && code.getOrNull(index + 1) == '/') -> {
                 val end = code.indexOf('\n', index).let { if (it < 0) code.length else it }
-                withStyle(SpanStyle(color = codeComment)) { append(code.substring(index, end)) }
+                withStyle(SpanStyle(color = palette.comment)) { append(code.substring(index, end)) }
                 index = end
             }
             char == '"' || char == '\'' -> {
@@ -401,13 +410,13 @@ private fun highlightCode(code: String) = buildAnnotatedString {
                     }
                     cursor++
                 }
-                withStyle(SpanStyle(color = codeString)) { append(code.substring(index, cursor.coerceAtMost(code.length))) }
+                withStyle(SpanStyle(color = palette.string)) { append(code.substring(index, cursor.coerceAtMost(code.length))) }
                 index = cursor
             }
             char.isDigit() -> {
                 var cursor = index + 1
                 while (cursor < code.length && (code[cursor].isDigit() || code[cursor] == '.')) cursor++
-                withStyle(SpanStyle(color = codeNumber)) { append(code.substring(index, cursor)) }
+                withStyle(SpanStyle(color = palette.number)) { append(code.substring(index, cursor)) }
                 index = cursor
             }
             char.isLetter() || char == '_' -> {
@@ -415,9 +424,9 @@ private fun highlightCode(code: String) = buildAnnotatedString {
                 while (cursor < code.length && (code[cursor].isLetterOrDigit() || code[cursor] == '_')) cursor++
                 val word = code.substring(index, cursor)
                 val color = when (word) {
-                    in codeDeclarations -> codeDeclare
-                    in codeReturns -> codeReturn
-                    in codeWords -> codeKeyword
+                    in codeDeclarations -> palette.declare
+                    in codeReturns -> palette.returns
+                    in codeWords -> palette.keyword
                     else -> null
                 }
                 if (color == null) append(word) else withStyle(SpanStyle(color = color)) { append(word) }
@@ -431,7 +440,7 @@ private fun highlightCode(code: String) = buildAnnotatedString {
     }
 }
 
-private fun bodyStyle(colors: KomdPalette) = TextStyle(
+private fun bodyStyle(colors: KomdColors) = TextStyle(
     color = colors.foreground,
     fontSize = 16.5.sp,
     lineHeight = 27.sp,
@@ -441,10 +450,9 @@ private fun bodyStyle(colors: KomdPalette) = TextStyle(
 @Composable
 private fun MarkdownTable(table: MdBlock.Table, base: Int = 0) {
     val query = LocalPreviewSearch.current?.query.orEmpty()
-    val colors = LocalKomdPalette.current
-    val light = colors.background.luminance() > 0.5f
-    val headerBg = if (light) Color(0xFFF3F4F6) else Color(0xFF12263C)
-    val grid = if (light) Color(0xFFE4E6EA) else colors.divider
+    val colors = KomdTheme.colors
+    val headerBg = colors.codeBackground
+    val grid = colors.divider
     val cols = table.header.size.coerceAtLeast(1)
     BoxWithConstraints(Modifier.fillMaxWidth().padding(bottom = 18.dp)) {
         val minCol = 152.dp
@@ -475,7 +483,7 @@ private fun TableRow(
     header: Boolean,
     background: Color,
     grid: Color,
-    colors: KomdPalette,
+    colors: KomdColors,
     base: Int = 0,
 ) {
     val query = LocalPreviewSearch.current?.query.orEmpty()
@@ -516,7 +524,7 @@ private fun TableRow(
 
 @Composable
 private fun MarkdownImage(image: PreviewImage, imageUnsupported: String) {
-    val colors = LocalKomdPalette.current
+    val colors = KomdTheme.colors
     val model = resolveImageModel(image.source, LocalDocumentDirectory.current)
     if (model == null) {
         Text(
@@ -591,8 +599,8 @@ private fun InlineText(
     textAlign: TextAlign = TextAlign.Start,
     base: Int = 0,
 ) {
-    val colors = LocalKomdPalette.current
-    val annotated = remember(inlines, color, colors.accent, colors.button, style.fontSize) {
+    val colors = KomdTheme.colors
+    val annotated = remember(inlines, color, colors.accent, colors.codeBackground, style.fontSize) {
         buildAnnotatedString {
             appendInlines(inlines, SpanStyle(color = color), colors, style.fontSize)
         }
@@ -604,7 +612,7 @@ private fun InlineText(
 private fun androidx.compose.ui.text.AnnotatedString.Builder.appendInlines(
     inlines: List<MdInline>,
     extra: SpanStyle,
-    colors: KomdPalette,
+    colors: KomdColors,
     fontSize: TextUnit,
 ) {
     inlines.forEach { item ->
@@ -616,7 +624,7 @@ private fun androidx.compose.ui.text.AnnotatedString.Builder.appendInlines(
                         fontFamily = FontFamily.Monospace,
                         fontWeight = FontWeight.Normal,
                         fontStyle = FontStyle.Normal,
-                        background = colors.button,
+                        background = colors.codeBackground,
                         fontSize = fontSize * 0.9f
                     )
                 )
@@ -654,7 +662,7 @@ private fun androidx.compose.ui.text.AnnotatedString.Builder.appendInlines(
 private fun androidx.compose.ui.text.AnnotatedString.Builder.appendStyled(
     item: MdInline.Styled,
     extra: SpanStyle,
-    colors: KomdPalette,
+    colors: KomdColors,
     fontSize: TextUnit,
 ) {
     val look = item.look
