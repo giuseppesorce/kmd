@@ -90,10 +90,10 @@ private fun ArrowGlyph(color: Color, size: Dp = 12.dp) {
 /** Toolbar button that opens the search field; highlighted while the field is open. */
 @Composable
 internal fun SearchToggleButton(active: Boolean, label: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    val colors = LocalKomdPalette.current
+    val colors = KomdTheme.colors
     Box(
         modifier.clip(RoundedCornerShape(7.dp))
-            .background(if (active) colors.selectedDocument else colors.button)
+            .background(if (active) colors.accentSoft else colors.hover)
             .clickable(role = Role.Button, onClick = onClick)
             .semantics { contentDescription = label }
             .padding(horizontal = 7.dp, vertical = 8.dp),
@@ -118,7 +118,7 @@ internal fun DocumentSearchField(
     focusRequests: Int,
     modifier: Modifier = Modifier
 ) {
-    val colors = LocalKomdPalette.current
+    val colors = KomdTheme.colors
     val ui = LocalUiStrings.current
     val focusRequester = remember { FocusRequester() }
     LaunchedEffect(focusRequests) { focusRequester.requestFocus() }
@@ -162,12 +162,12 @@ internal fun DocumentSearchField(
         Spacer(Modifier.width(6.dp))
         Box(
             Modifier.size(26.dp).clip(RoundedCornerShape(6.dp))
-                .background(if (canSearch) colors.accent else colors.button)
+                .background(if (canSearch) colors.accent else colors.hover)
                 .clickable(role = Role.Button) { onSubmit(true) }
                 .semantics { contentDescription = ui.find },
             contentAlignment = Alignment.Center
         ) {
-            ArrowGlyph(if (canSearch) colors.background else colors.secondary)
+            ArrowGlyph(if (canSearch) colors.onAccent else colors.secondary)
         }
     }
 }

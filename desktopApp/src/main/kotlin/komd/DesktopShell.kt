@@ -2,40 +2,46 @@ package komd
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyShortcut
 import androidx.compose.ui.window.FrameWindowScope
 import androidx.compose.ui.window.MenuBar
 import komd.shared.AppCommands
+import komd.shared.AppShortcut
 import java.awt.Desktop
 
 private val isMacOs = System.getProperty("os.name").orEmpty().contains("mac", ignoreCase = true)
 
 /** Cmd on macOS, Ctrl on Windows/Linux. */
-private fun shortcut(key: Key, shift: Boolean = false) =
-    KeyShortcut(key, meta = isMacOs, ctrl = !isMacOs, shift = shift)
+private fun AppShortcut.toKeyShortcut() = KeyShortcut(key, meta = isMacOs, ctrl = !isMacOs, shift = shift, alt = alt)
 
 /**
- * File and Edit menus with the editor shortcuts. On macOS it is shown in the system menu bar
- * (see `apple.laf.useScreenMenuBar` in main), on Windows/Linux inside the window.
+ * Native menus rendered from the app's action registry (labels, shortcuts and handlers all come
+ * from [AppCommands.menus]). On macOS it is shown in the system menu bar (see
+ * `apple.laf.useScreenMenuBar` in main), on Windows/Linux inside the window.
  */
 @Composable
 fun FrameWindowScope.KomdMenuBar(commands: AppCommands) {
-    val labels = commands.labels
+    val menus = commands.menus
+    if (menus.isEmpty()) return
     MenuBar {
-        Menu(labels.file, mnemonic = 'F') {
-            Item(labels.newDocument, shortcut = shortcut(Key.N), onClick = commands::newDocument)
-            Item(labels.open, shortcut = shortcut(Key.O), onClick = commands::open)
-            Separator()
-            Item(labels.close, shortcut = shortcut(Key.W), onClick = commands::close)
-            Item(labels.save, shortcut = shortcut(Key.S), onClick = commands::save)
-            Item(labels.saveAs, shortcut = shortcut(Key.S, shift = true), onClick = commands::saveAs)
-            Separator()
-            Item(labels.exportHtml, shortcut = shortcut(Key.E, shift = true), onClick = commands::exportHtml)
-            Item(labels.exportPdf, shortcut = shortcut(Key.P, shift = true), onClick = commands::exportPdf)
-        }
-        Menu(labels.edit, mnemonic = 'E') {
-            Item(labels.find, shortcut = shortcut(Key.F), onClick = commands::find)
+        menus.forEach { menu ->
+            Menu(menu.title) {
+                menu.items.forEach { item ->
+                    if (item.separatorBefore) Separator()
+                    val checked = item.checked
+                    if (checked != null) {
+                        CheckboxItem(
+                            item.label,
+                            checked = checked,
+                            enabled = item.enabled,
+                            shortcut = item.shortcut?.toKeyShortcut(),
+                            onCheckedChange = { item.onClick() }
+                        )
+                    } else {
+                        Item(item.label, enabled = item.enabled, shortcut = item.shortcut?.toKeyShortcut(), onClick = item.onClick)
+                    }
+                }
+            }
         }
     }
 }

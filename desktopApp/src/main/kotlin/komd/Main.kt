@@ -1,6 +1,15 @@
 package komd
 
+import androidx.compose.foundation.draganddrop.dragAndDropTarget
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.remember
+import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draganddrop.DragAndDropEvent
+import androidx.compose.ui.draganddrop.DragAndDropTarget
+import androidx.compose.ui.draganddrop.DragData
+import androidx.compose.ui.draganddrop.dragData
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
@@ -11,6 +20,7 @@ import komd.shared.AppCommands
 import komd.shared.ExternalOpenRequests
 import java.awt.Desktop
 import java.io.File
+import java.net.URI
 
 fun main(args: Array<String>) {
     // Show the Compose MenuBar in the macOS system menu bar instead of inside the window.
@@ -33,8 +43,21 @@ fun main(args: Array<String>) {
             state = rememberWindowState(width = 1400.dp, height = 900.dp)
         ) {
             KomdMenuBar(commands)
-            App(commands = commands, onExit = ::exitApplication)
+            // Markdown files dropped on the window open in a new tab, like "Open With…".
+            Box(Modifier.fillMaxSize().dragAndDropTarget(shouldStartDragAndDrop = { true }, target = fileDropTarget)) {
+                App(commands = commands, onExit = ::exitApplication)
+            }
         }
+    }
+}
+
+@OptIn(ExperimentalComposeUiApi::class)
+private val fileDropTarget = object : DragAndDropTarget {
+    override fun onDrop(event: DragAndDropEvent): Boolean {
+        val files = event.dragData() as? DragData.FilesList ?: return false
+        val paths = files.readFiles().mapNotNull { uri -> runCatching { File(URI(uri)).path }.getOrNull() }
+        paths.forEach(::requestOpen)
+        return paths.isNotEmpty()
     }
 }
 
