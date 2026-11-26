@@ -91,6 +91,11 @@ jobs:
             -Pcompose.desktop.mac.sign=true \
             -Pcompose.desktop.mac.signing.identity="$IDENTITY" \
             -Pcompose.desktop.mac.signing.keychain="$SIGNING_KEYCHAIN"
+          # Compose signs the .app inside the image but not the .dmg container itself. Signing the
+          # .dmg too lets Gatekeeper check the download directly (no "no usable signature").
+          codesign --force --timestamp --keychain "$SIGNING_KEYCHAIN" \
+            --sign "Developer ID Application: $IDENTITY" installer/*.dmg
+          codesign --verify -v installer/*.dmg
       - name: Notarize and staple .dmg
         if: env.MACOS_CERTIFICATE_P12 != ''
         env:
@@ -128,6 +133,7 @@ jobs:
           DMG=$(ls installer/*.dmg)
           xcrun stapler validate "$DMG"
           spctl --assess --type open --context context:primary-signature -v "$DMG"
+          spctl --assess --type execute -v desktopApp/build/compose/binaries/main/app/KoMD.app
           codesign --verify --deep --strict -v desktopApp/build/compose/binaries/main/app/KoMD.app
       - name: Build unsigned .dmg (no signing secrets)
         if: env.MACOS_CERTIFICATE_P12 == ''
