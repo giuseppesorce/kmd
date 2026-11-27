@@ -95,8 +95,9 @@ internal fun toggleInline(text: String, selection: TextRange, style: InlineStyle
     }
 
     // "**word **" is not bold in Markdown: keep surrounding whitespace outside the markers.
-    while (start < end && text[start].isWhitespace()) start++
-    while (end > start && text[end - 1].isWhitespace()) end--
+    // Same for table pipes: a whole selected cell ("| text |") must stay a cell, "|**text**|".
+    while (start < end && text[start].isEdgeTrimmed()) start++
+    while (end > start && text[end - 1].isEdgeTrimmed()) end--
     if (start == end) return toggleInline(text, TextRange(selection.min), style, placeholder)
 
     val selected = text.substring(start, end)
@@ -161,6 +162,8 @@ private fun wrapped(runBefore: Int, runAfter: Int, style: InlineStyle): Boolean 
     if (style != InlineStyle.Italic && style != InlineStyle.Bold) return true
     return if (style == InlineStyle.Italic) runBefore % 2 == 1 && runAfter % 2 == 1 else runBefore >= 2 && runAfter >= 2
 }
+
+private fun Char.isEdgeTrimmed() = isWhitespace() || this == '|'
 
 private fun leadingStars(s: String) = s.takeWhile { it == '*' }.length
 private fun trailingStars(s: String) = s.takeLastWhile { it == '*' }.length

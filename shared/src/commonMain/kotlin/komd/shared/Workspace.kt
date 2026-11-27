@@ -24,6 +24,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -501,6 +502,7 @@ internal fun FormatBar(actions: ActionRegistry, currentHeading: Int, crumb: Stri
                 Row(
                     Modifier.height(28.dp).clip(RoundedCornerShape(6.dp))
                         .background(if (currentHeading > 0) colors.hover else Color.Transparent)
+                        .keepEditorFocus()
                         .clickable(role = Role.Button) { open = true }
                         .semantics { contentDescription = ui.heading }
                         .padding(horizontal = 7.dp),
@@ -542,6 +544,13 @@ internal fun FormatBar(actions: ActionRegistry, currentHeading: Int, crumb: Stri
     }
 }
 
+/**
+ * Toolbar buttons must not take focus on click: when the editor loses focus, BasicTextField
+ * collapses its selection to the end, so Bold & co. would insert a placeholder there instead of
+ * wrapping the selected text.
+ */
+private fun Modifier.keepEditorFocus(): Modifier = focusProperties { canFocus = false }
+
 @Composable
 private fun ToolbarSeparator() {
     Box(Modifier.padding(horizontal = 6.dp).width(1.dp).height(18.dp).background(KomdTheme.colors.divider))
@@ -556,6 +565,7 @@ internal fun ActionButton(action: KomdAction, size: Dp = 28.dp) {
     KomdTooltip(action) {
         Box(
             Modifier.size(size).clip(RoundedCornerShape(6.dp))
+                .keepEditorFocus()
                 .clickable(enabled = action.enabled, role = Role.Button, onClick = action.run)
                 .semantics { contentDescription = description },
             contentAlignment = Alignment.Center
@@ -768,7 +778,13 @@ internal fun EditorPane(
             onTextLayout = { layout = it; onTextLayout(it) },
             modifier = modifier.background(colors.background)
                 .verticalScroll(scrollState)
-                .onFocusChanged { editorHasFocus = it.isFocused }
+                .onFocusChanged {
+                    // On blur BasicTextField collapses the selection to its end (and reports it
+                    // before this outer callback runs). Put the range back, so actions run from
+                    // places that do take focus (palette, heading menu) still see the selection.
+                    if (editorHasFocus && !it.isFocused && !value.selection.collapsed) onChange(value)
+                    editorHasFocus = it.isFocused
+                }
                 .pointerInput(zoom, editorHasFocus) {
                     awaitPointerEventScope {
                         while (true) {
