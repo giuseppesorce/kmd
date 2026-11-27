@@ -44,6 +44,7 @@ internal object KomdIcons {
     val ChevronRight = icon("m9 6 6 6-6 6")
     val ChevronLeft = icon("m15 6-6 6 6 6")
     val ChevronDown = icon("m6 9 6 6 6-6")
+    val Trash = icon("M4 7h16M10 11v6M14 11v6", "M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12", "M9 7V4h6v3")
     val Close = icon("M7 7l10 10M17 7 7 17")
     val Sun = icon(circle(12f, 12f, 4f), "M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4")
     val Moon = icon("M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z")
