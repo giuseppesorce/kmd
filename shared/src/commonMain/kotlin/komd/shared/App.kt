@@ -633,6 +633,12 @@ private fun AppContent(
         add(KomdAction(ActionId.InsertCodeBlock, ui.codeBlock, KomdMenu.Format, 3, icon = KomdIcons.CodeBlock, enabled = hasDocument) {
             insertAtCursor("\n```\n${ui.code}\n```\n")
         })
+        add(KomdAction(ActionId.InsertLineBreak, ui.lineBreak, KomdMenu.Format, 3, KomdShortcut(Key.Enter, "↩"), enabled = hasDocument) {
+            if (documents.isNotEmpty()) applyEdit(insertLineBreak(content, selection))
+        })
+        add(KomdAction(ActionId.InsertHorizontalRule, ui.horizontalRule, KomdMenu.Format, 3, KomdShortcut(Key.Minus, "-", shift = true), KomdIcons.HorizontalRule, enabled = hasDocument) {
+            if (documents.isNotEmpty()) applyEdit(insertHorizontalRule(content, selection))
+        })
         add(KomdAction(ActionId.InsertCustomLink, ui.customLink + "…", KomdMenu.Format, 3, icon = KomdIcons.Link, enabled = hasDocument) { showCustomLinkDialog = true })
         // View
         add(KomdAction(ActionId.CommandPalette, ui.commandPalette, KomdMenu.View, 0, KomdShortcut(Key.K, "K"), KomdIcons.Command) { paletteOpen = true })

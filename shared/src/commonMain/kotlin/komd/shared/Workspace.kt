@@ -536,7 +536,7 @@ internal fun FormatBar(actions: ActionRegistry, currentHeading: Int, crumb: Stri
         ToolbarSeparator()
         listOf(ActionId.BulletList, ActionId.NumberedList, ActionId.TaskList, ActionId.Quote).forEach { ActionButton(actions[it]) }
         ToolbarSeparator()
-        listOf(ActionId.InsertTable, ActionId.InsertImage, ActionId.InsertCodeBlock).forEach { ActionButton(actions[it]) }
+        listOf(ActionId.InsertTable, ActionId.InsertImage, ActionId.InsertCodeBlock, ActionId.InsertHorizontalRule, ActionId.InsertLineBreak).forEach { ActionButton(actions[it]) }
         Spacer(Modifier.weight(1f).widthIn(min = 12.dp))
         Text(crumb, color = colors.faint, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
@@ -571,6 +571,7 @@ internal fun ActionButton(action: KomdAction, size: Dp = 28.dp) {
                     ActionId.H1 -> "H1"
                     ActionId.H2 -> "H2"
                     ActionId.H3 -> "H3"
+                    ActionId.InsertLineBreak -> "BR"
                     else -> action.label.take(1)
                 }
                 Text(
@@ -707,6 +708,7 @@ internal fun CompactFormatBar(actions: ActionRegistry) {
         listOf(
             ActionId.H1, ActionId.H2, ActionId.H3, ActionId.Bold, ActionId.Italic, ActionId.Link,
             ActionId.BulletList, ActionId.TaskList, ActionId.Quote, ActionId.InsertTable, ActionId.InsertImage, ActionId.InsertCodeBlock,
+            ActionId.InsertHorizontalRule, ActionId.InsertLineBreak,
         ).forEach { ActionButton(actions[it], 38.dp) }
     }
 }
