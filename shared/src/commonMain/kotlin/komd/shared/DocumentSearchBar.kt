@@ -91,15 +91,17 @@ private fun ArrowGlyph(color: Color, size: Dp = 12.dp) {
 @Composable
 internal fun SearchToggleButton(active: Boolean, label: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val colors = KomdTheme.colors
-    Box(
-        modifier.clip(RoundedCornerShape(7.dp))
-            .background(if (active) colors.accentSoft else colors.hover)
-            .clickable(role = Role.Button, onClick = onClick)
-            .semantics { contentDescription = label }
-            .padding(horizontal = 7.dp, vertical = 8.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        SearchGlyph(if (active) colors.accent else colors.foreground)
+    KomdTooltip(label, modifier = modifier) {
+        Box(
+            Modifier.clip(RoundedCornerShape(7.dp))
+                .background(if (active) colors.accentSoft else colors.hover)
+                .clickable(role = Role.Button, onClick = onClick)
+                .semantics { contentDescription = label }
+                .padding(horizontal = 7.dp, vertical = 8.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            SearchGlyph(if (active) colors.accent else colors.foreground)
+        }
     }
 }
 
@@ -160,14 +162,16 @@ internal fun DocumentSearchField(
             Text(it, color = if (status == SearchStatus.TooShort) colors.accent else colors.secondary, fontSize = 10.sp, maxLines = 1)
         }
         Spacer(Modifier.width(6.dp))
-        Box(
-            Modifier.size(26.dp).clip(RoundedCornerShape(6.dp))
-                .background(if (canSearch) colors.accent else colors.hover)
-                .clickable(role = Role.Button) { onSubmit(true) }
-                .semantics { contentDescription = ui.find },
-            contentAlignment = Alignment.Center
-        ) {
-            ArrowGlyph(if (canSearch) colors.onAccent else colors.secondary)
+        KomdTooltip(ui.find, "↵") {
+            Box(
+                Modifier.size(26.dp).clip(RoundedCornerShape(6.dp))
+                    .background(if (canSearch) colors.accent else colors.hover)
+                    .clickable(role = Role.Button) { onSubmit(true) }
+                    .semantics { contentDescription = ui.find },
+                contentAlignment = Alignment.Center
+            ) {
+                ArrowGlyph(if (canSearch) colors.onAccent else colors.secondary)
+            }
         }
     }
 }

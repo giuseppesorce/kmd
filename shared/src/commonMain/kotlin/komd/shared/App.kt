@@ -739,7 +739,8 @@ private fun AppContent(
                     selectedIndex = selectedIndex,
                     onSelect = selectDocument,
                     onClose = closeDocumentAt,
-                    onNew = newDocument,
+                    newAction = actions[ActionId.NewDocument],
+                    closeAction = actions[ActionId.Close],
                     paletteLabel = ui.searchOrRun,
                     paletteShortcut = actions[ActionId.CommandPalette].shortcut?.label(),
                     onPalette = { paletteOpen = true },
@@ -750,8 +751,7 @@ private fun AppContent(
                     Rail(
                         active = sidePanel,
                         onSelect = togglePanel,
-                        themeAction = actions[ActionId.ToggleTheme],
-                        settingsAction = actions[ActionId.Settings],
+                        actions = actions,
                     )
                     if (panelOpen) {
                         Column(Modifier.width(236.dp).fillMaxHeight().background(colors.sidebar).endBorder(colors.divider)) {
@@ -817,7 +817,6 @@ private fun AppContent(
                     selectedIndex = selectedIndex,
                     onSelect = selectDocument,
                     onClose = closeDocumentAt,
-                    onNew = newDocument,
                     actions = actions,
                     previewActive = workspaceMode == WorkspaceMode.Preview,
                     onPreviewToggle = {

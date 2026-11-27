@@ -37,6 +37,9 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -65,7 +68,9 @@ internal fun DocumentTabs(
     selectedIndex: Int,
     onSelect: (Int) -> Unit,
     onClose: (Int) -> Unit,
-    onNew: () -> Unit,
+    /** Registry actions: the + button runs [newAction]; [closeAction] only lends label and shortcut to the × hint. */
+    newAction: KomdAction,
+    closeAction: KomdAction,
     modifier: Modifier = Modifier,
 ) {
     val colors = KomdTheme.colors
@@ -91,7 +96,7 @@ internal fun DocumentTabs(
     }
 
     Row(modifier, verticalAlignment = Alignment.Bottom) {
-        TabNavButton(KomdIcons.ChevronLeft, enabled = canBack, Modifier.align(Alignment.CenterVertically)) {
+        TabNavButton(KomdIcons.ChevronLeft, ui.scrollTabsBack, enabled = canBack, modifier = Modifier.align(Alignment.CenterVertically)) {
             scope.launch { listState.animateScrollBy(-listState.layoutInfo.viewportSize.width * 0.6f) }
         }
         LazyRow(
@@ -103,22 +108,30 @@ internal fun DocumentTabs(
             verticalAlignment = Alignment.Bottom,
         ) {
             itemsIndexed(tabs, key = { index, tab -> tab.path ?: "untitled-$index-${tab.name}" }) { index, tab ->
-                DocumentTab(tab, selected = index == selectedIndex, onClick = { onSelect(index) }, onClose = { onClose(index) })
+                val selected = index == selectedIndex
+                DocumentTab(
+                    tab, selected = selected, onClick = { onSelect(index) }, onClose = { onClose(index) },
+                    closeLabel = closeAction.label,
+                    // ⌘W closes the current document only, so the hint belongs to the selected tab.
+                    closeShortcut = closeAction.shortcut?.takeIf { selected }?.label(),
+                )
             }
         }
-        TabNavButton(KomdIcons.ChevronRight, enabled = canForward, Modifier.align(Alignment.CenterVertically)) {
+        TabNavButton(KomdIcons.ChevronRight, ui.scrollTabsForward, enabled = canForward, modifier = Modifier.align(Alignment.CenterVertically)) {
             scope.launch { listState.animateScrollBy(listState.layoutInfo.viewportSize.width * 0.6f) }
         }
-        TabNavButton(KomdIcons.Plus, enabled = true, Modifier.align(Alignment.CenterVertically), onClick = onNew)
+        TabNavButton(KomdIcons.Plus, newAction.label, newAction.shortcut?.label(), enabled = true, modifier = Modifier.align(Alignment.CenterVertically), onClick = newAction.run)
         Box(Modifier.align(Alignment.CenterVertically)) {
             var menuOpen by remember { mutableStateOf(false) }
-            Row(
-                Modifier.height(26.dp).clip(RoundedCornerShape(6.dp)).clickable { menuOpen = true }.padding(horizontal = 6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(2.dp)
-            ) {
-                Text("${tabs.size}", color = colors.secondary, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, fontFamily = FontFamily.Monospace)
-                KomdIcon(KomdIcons.ChevronDown, colors.secondary, size = 12.dp)
+            KomdTooltip(ui.allTabs) {
+                Row(
+                    Modifier.height(26.dp).clip(RoundedCornerShape(6.dp)).clickable { menuOpen = true }.padding(horizontal = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    Text("${tabs.size}", color = colors.secondary, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, fontFamily = FontFamily.Monospace)
+                    KomdIcon(KomdIcons.ChevronDown, colors.secondary, size = 12.dp)
+                }
             }
             AllTabsMenu(
                 expanded = menuOpen,
@@ -134,7 +147,7 @@ internal fun DocumentTabs(
 }
 
 @Composable
-private fun DocumentTab(tab: TabItem, selected: Boolean, onClick: () -> Unit, onClose: () -> Unit) {
+private fun DocumentTab(tab: TabItem, selected: Boolean, onClick: () -> Unit, onClose: () -> Unit, closeLabel: String, closeShortcut: String?) {
     val colors = KomdTheme.colors
     val interaction = remember { MutableInteractionSource() }
     val hovered by interaction.collectIsHoveredAsState()
@@ -162,24 +175,36 @@ private fun DocumentTab(tab: TabItem, selected: Boolean, onClick: () -> Unit, on
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
-        Box(
-            Modifier.size(16.dp).clip(RoundedCornerShape(4.dp)).clickable(onClick = onClose),
-            contentAlignment = Alignment.Center
-        ) {
-            if (selected || hovered) KomdIcon(KomdIcons.Close, colors.faint, size = 12.dp)
+        KomdTooltip(closeLabel, closeShortcut) {
+            Box(
+                Modifier.size(16.dp).clip(RoundedCornerShape(4.dp)).clickable(onClick = onClose),
+                contentAlignment = Alignment.Center
+            ) {
+                if (selected || hovered) KomdIcon(KomdIcons.Close, colors.faint, size = 12.dp)
+            }
         }
     }
 }
 
 @Composable
-private fun TabNavButton(icon: androidx.compose.ui.graphics.vector.ImageVector, enabled: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
+private fun TabNavButton(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    shortcut: String? = null,
+    enabled: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
     val colors = KomdTheme.colors
-    Box(
-        modifier.size(26.dp).clip(RoundedCornerShape(6.dp))
-            .clickable(enabled = enabled, onClick = onClick),
-        contentAlignment = Alignment.Center
-    ) {
-        KomdIcon(icon, colors.secondary.copy(alpha = if (enabled) 1f else 0.3f), size = 14.dp)
+    KomdTooltip(label, shortcut, modifier) {
+        Box(
+            Modifier.size(26.dp).clip(RoundedCornerShape(6.dp))
+                .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+                .semantics { contentDescription = label },
+            contentAlignment = Alignment.Center
+        ) {
+            KomdIcon(icon, colors.secondary.copy(alpha = if (enabled) 1f else 0.3f), size = 14.dp)
+        }
     }
 }
 

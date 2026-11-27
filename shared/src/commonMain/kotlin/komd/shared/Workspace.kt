@@ -88,7 +88,8 @@ internal fun TitleBar(
     selectedIndex: Int,
     onSelect: (Int) -> Unit,
     onClose: (Int) -> Unit,
-    onNew: () -> Unit,
+    newAction: KomdAction,
+    closeAction: KomdAction,
     paletteLabel: String,
     paletteShortcut: String?,
     onPalette: () -> Unit,
@@ -102,7 +103,7 @@ internal fun TitleBar(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        DocumentTabs(tabs, selectedIndex, onSelect, onClose, onNew, Modifier.weight(1f).fillMaxHeight())
+        DocumentTabs(tabs, selectedIndex, onSelect, onClose, newAction, closeAction, Modifier.weight(1f).fillMaxHeight())
         Row(
             Modifier.width(200.dp).height(30.dp).clip(RoundedCornerShape(8.dp)).background(colors.background)
                 .border(1.dp, colors.divider, RoundedCornerShape(8.dp))
@@ -151,42 +152,45 @@ internal fun Kbd(label: String) {
 internal fun Rail(
     active: SidePanel?,
     onSelect: (SidePanel) -> Unit,
-    themeAction: KomdAction,
-    settingsAction: KomdAction,
+    actions: ActionRegistry,
 ) {
     val colors = KomdTheme.colors
-    val ui = LocalUiStrings.current
     Column(
         Modifier.width(52.dp).fillMaxHeight().background(colors.sidebar).endBorder(colors.divider).padding(vertical = 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
+        // Labels and shortcuts come from the registry; the click toggles the panel instead of only showing it.
         val items = listOf(
-            Triple(SidePanel.Files, KomdIcons.File, ui.panelFiles),
-            Triple(SidePanel.Search, KomdIcons.Search, ui.panelSearch),
-            Triple(SidePanel.Outline, KomdIcons.Outline, ui.panelOutline),
-            Triple(SidePanel.Export, KomdIcons.Share, ui.panelExport),
+            Triple(SidePanel.Files, KomdIcons.File, actions[ActionId.ShowFiles]),
+            Triple(SidePanel.Search, KomdIcons.Search, actions[ActionId.Find]),
+            Triple(SidePanel.Outline, KomdIcons.Outline, actions[ActionId.ShowOutline]),
+            Triple(SidePanel.Export, KomdIcons.Share, actions[ActionId.ShowExport]),
         )
-        items.forEach { (panel, icon, label) ->
-            RailButton(icon, label, selected = active == panel) { onSelect(panel) }
+        items.forEach { (panel, icon, action) ->
+            RailButton(icon, action, selected = active == panel) { onSelect(panel) }
         }
         Spacer(Modifier.weight(1f))
-        RailButton(themeAction.icon ?: KomdIcons.Moon, themeAction.label, selected = false, onClick = themeAction.run)
-        RailButton(KomdIcons.Gear, settingsAction.label, selected = false, onClick = settingsAction.run)
+        val themeAction = actions[ActionId.ToggleTheme]
+        val settingsAction = actions[ActionId.Settings]
+        RailButton(themeAction.icon ?: KomdIcons.Moon, themeAction, selected = false, onClick = themeAction.run)
+        RailButton(KomdIcons.Gear, settingsAction, selected = false, onClick = settingsAction.run)
     }
 }
 
 @Composable
-private fun RailButton(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, selected: Boolean, onClick: () -> Unit) {
+private fun RailButton(icon: androidx.compose.ui.graphics.vector.ImageVector, action: KomdAction, selected: Boolean, onClick: () -> Unit) {
     val colors = KomdTheme.colors
-    Box(
-        Modifier.size(34.dp).clip(RoundedCornerShape(8.dp))
-            .background(if (selected) colors.accentSoft else Color.Transparent)
-            .clickable(role = Role.Tab, onClick = onClick)
-            .semantics { contentDescription = label },
-        contentAlignment = Alignment.Center
-    ) {
-        KomdIcon(icon, if (selected) colors.accent else colors.secondary)
+    KomdTooltip(action, side = TooltipSide.End) {
+        Box(
+            Modifier.size(34.dp).clip(RoundedCornerShape(8.dp))
+                .background(if (selected) colors.accentSoft else Color.Transparent)
+                .clickable(role = Role.Tab, onClick = onClick)
+                .semantics { contentDescription = action.label },
+            contentAlignment = Alignment.Center
+        ) {
+            KomdIcon(icon, if (selected) colors.accent else colors.secondary)
+        }
     }
 }
 
@@ -402,21 +406,23 @@ internal fun FormatBar(actions: ActionRegistry, currentHeading: Int, crumb: Stri
     ) {
         Box {
             var open by remember { mutableStateOf(false) }
-            Row(
-                Modifier.height(28.dp).clip(RoundedCornerShape(6.dp))
-                    .background(if (currentHeading > 0) colors.hover else Color.Transparent)
-                    .clickable(role = Role.Button) { open = true }
-                    .semantics { contentDescription = ui.heading }
-                    .padding(horizontal = 7.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(2.dp)
-            ) {
-                Text(
-                    if (currentHeading > 0) "H$currentHeading" else "H",
-                    color = if (currentHeading > 0) colors.foreground else colors.secondary,
-                    fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold
-                )
-                KomdIcon(KomdIcons.ChevronDown, colors.secondary, size = 12.dp)
+            KomdTooltip(ui.heading) {
+                Row(
+                    Modifier.height(28.dp).clip(RoundedCornerShape(6.dp))
+                        .background(if (currentHeading > 0) colors.hover else Color.Transparent)
+                        .clickable(role = Role.Button) { open = true }
+                        .semantics { contentDescription = ui.heading }
+                        .padding(horizontal = 7.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    Text(
+                        if (currentHeading > 0) "H$currentHeading" else "H",
+                        color = if (currentHeading > 0) colors.foreground else colors.secondary,
+                        fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold
+                    )
+                    KomdIcon(KomdIcons.ChevronDown, colors.secondary, size = 12.dp)
+                }
             }
             DropdownMenu(open, onDismissRequest = { open = false }, offset = DpOffset(0.dp, 4.dp), containerColor = colors.background) {
                 listOf(ActionId.H1, ActionId.H2, ActionId.H3).forEachIndexed { index, id ->
@@ -456,34 +462,36 @@ internal fun ActionButton(action: KomdAction, size: Dp = 28.dp) {
     val colors = KomdTheme.colors
     val tint = colors.secondary.copy(alpha = if (action.enabled) 1f else 0.4f)
     val description = action.shortcut?.let { "${action.label} (${it.label()})" } ?: action.label
-    Box(
-        Modifier.size(size).clip(RoundedCornerShape(6.dp))
-            .clickable(enabled = action.enabled, role = Role.Button, onClick = action.run)
-            .semantics { contentDescription = description },
-        contentAlignment = Alignment.Center
-    ) {
-        val icon = action.icon
-        if (icon != null) {
-            KomdIcon(icon, tint)
-        } else {
-            val glyph = when (action.id) {
-                ActionId.Bold -> "B"
-                ActionId.Italic -> "I"
-                ActionId.Strikethrough -> "S"
-                ActionId.H1 -> "H1"
-                ActionId.H2 -> "H2"
-                ActionId.H3 -> "H3"
-                else -> action.label.take(1)
+    KomdTooltip(action) {
+        Box(
+            Modifier.size(size).clip(RoundedCornerShape(6.dp))
+                .clickable(enabled = action.enabled, role = Role.Button, onClick = action.run)
+                .semantics { contentDescription = description },
+            contentAlignment = Alignment.Center
+        ) {
+            val icon = action.icon
+            if (icon != null) {
+                KomdIcon(icon, tint)
+            } else {
+                val glyph = when (action.id) {
+                    ActionId.Bold -> "B"
+                    ActionId.Italic -> "I"
+                    ActionId.Strikethrough -> "S"
+                    ActionId.H1 -> "H1"
+                    ActionId.H2 -> "H2"
+                    ActionId.H3 -> "H3"
+                    else -> action.label.take(1)
+                }
+                Text(
+                    glyph,
+                    color = tint,
+                    fontSize = 13.sp,
+                    fontWeight = if (action.id == ActionId.Italic) FontWeight.Medium else FontWeight.Bold,
+                    fontStyle = if (action.id == ActionId.Italic) FontStyle.Italic else FontStyle.Normal,
+                    fontFamily = if (action.id == ActionId.Italic) FontFamily.Serif else null,
+                    textDecoration = if (action.id == ActionId.Strikethrough) TextDecoration.LineThrough else null,
+                )
             }
-            Text(
-                glyph,
-                color = tint,
-                fontSize = 13.sp,
-                fontWeight = if (action.id == ActionId.Italic) FontWeight.Medium else FontWeight.Bold,
-                fontStyle = if (action.id == ActionId.Italic) FontStyle.Italic else FontStyle.Normal,
-                fontFamily = if (action.id == ActionId.Italic) FontFamily.Serif else null,
-                textDecoration = if (action.id == ActionId.Strikethrough) TextDecoration.LineThrough else null,
-            )
         }
     }
 }
@@ -549,7 +557,6 @@ internal fun CompactTopBar(
     selectedIndex: Int,
     onSelect: (Int) -> Unit,
     onClose: (Int) -> Unit,
-    onNew: () -> Unit,
     actions: ActionRegistry,
     previewActive: Boolean,
     onPreviewToggle: () -> Unit,
@@ -560,7 +567,7 @@ internal fun CompactTopBar(
     val ui = LocalUiStrings.current
     Column(Modifier.fillMaxWidth().background(colors.chrome)) {
         Box(Modifier.fillMaxWidth().height(44.dp).bottomBorder(colors.divider).padding(horizontal = 8.dp)) {
-            DocumentTabs(tabs, selectedIndex, onSelect, onClose, onNew, Modifier.fillMaxSize())
+            DocumentTabs(tabs, selectedIndex, onSelect, onClose, actions[ActionId.NewDocument], actions[ActionId.Close], Modifier.fillMaxSize())
         }
         Row(
             Modifier.fillMaxWidth().height(40.dp).bottomBorder(colors.divider).padding(horizontal = 8.dp),
@@ -584,14 +591,16 @@ internal fun CompactTopBar(
 @Composable
 private fun ToggleIconButton(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, active: Boolean, onClick: () -> Unit) {
     val colors = KomdTheme.colors
-    Box(
-        Modifier.size(34.dp).clip(RoundedCornerShape(6.dp))
-            .background(if (active) colors.accentSoft else Color.Transparent)
-            .clickable(role = Role.Button, onClick = onClick)
-            .semantics { contentDescription = label },
-        contentAlignment = Alignment.Center
-    ) {
-        KomdIcon(icon, if (active) colors.accent else colors.secondary)
+    KomdTooltip(label) {
+        Box(
+            Modifier.size(34.dp).clip(RoundedCornerShape(6.dp))
+                .background(if (active) colors.accentSoft else Color.Transparent)
+                .clickable(role = Role.Button, onClick = onClick)
+                .semantics { contentDescription = label },
+            contentAlignment = Alignment.Center
+        ) {
+            KomdIcon(icon, if (active) colors.accent else colors.secondary)
+        }
     }
 }
 
