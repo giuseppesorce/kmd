@@ -113,6 +113,42 @@ class InlineStyleTest {
     @Test
     fun multiLineCodeBecomesFence() =
         assertEquals("```\na\nb\n```\n", toggleInline("a\nb", TextRange(0, 3), InlineStyle.Code, "x").text)
+
+    // A whole table row selected (long cell soft-wrapped in the editor): the selection is wrapped,
+    // not replaced by a placeholder, and the leading/trailing pipes stay outside the markers.
+    private val row = "| --- |\n| Backoffice COR (approvazione progetti) e un registro lato server. |\n<br>"
+    private val cell = "Backoffice COR (approvazione progetti) e un registro lato server."
+    private val rowStart = row.indexOf("| Backoffice")
+    private val rowEnd = row.indexOf(" |\n<br>") + 2
+
+    @Test
+    fun wholeTableRowKeepsPipesOutsideEveryInlineStyle() {
+        listOf(InlineStyle.Bold, InlineStyle.Italic, InlineStyle.Strikethrough, InlineStyle.Code).forEach { style ->
+            val m = style.marker
+            val result = toggleInline(row, TextRange(rowStart, rowEnd), style, "testo")
+            assertEquals(row.replace(cell, m + cell + m), result.text, style.name)
+            val s = rowStart + 2 + m.length
+            assertEquals(TextRange(s, s + cell.length), result.selection, style.name)
+        }
+    }
+
+    @Test
+    fun cellWithoutTrailingPipeIsWrapped() {
+        // As in the bug report: "| text" selected up to the end of the line, no closing pipe.
+        val text = "| $cell\n<br>"
+        val result = toggleInline(text, TextRange(0, text.indexOf('\n')), InlineStyle.Bold, "testo")
+        assertEquals("| **$cell**\n<br>", result.text)
+    }
+
+    @Test
+    fun selectedTableCellIsUnwrappedOnSecondPress() {
+        val bold = "| **$cell** |"
+        assertEquals("| $cell |", toggleInline(bold, TextRange(0, bold.length), InlineStyle.Bold, "testo").text)
+    }
+
+    @Test
+    fun onlyPipesSelectedFallsBackToPlaceholder() =
+        assertEquals("**testo**| |", toggleInline("| |", TextRange(0, 3), InlineStyle.Bold, "testo").text)
 }
 
 class LinkTest {
