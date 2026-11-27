@@ -13,6 +13,9 @@ import androidx.compose.ui.draganddrop.DragAndDropEvent
 import androidx.compose.ui.draganddrop.DragAndDropTarget
 import androidx.compose.ui.draganddrop.DragData
 import androidx.compose.ui.draganddrop.dragData
+import androidx.compose.ui.graphics.painter.BitmapPainter
+import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.graphics.toComposeImageBitmap
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
@@ -24,6 +27,7 @@ import komd.shared.ExternalOpenRequests
 import java.awt.Desktop
 import java.io.File
 import java.net.URI
+import javax.imageio.ImageIO
 
 fun main(args: Array<String>) {
     // Show the Compose MenuBar in the macOS system menu bar instead of inside the window.
@@ -43,6 +47,9 @@ fun main(args: Array<String>) {
         Window(
             onCloseRequest = commands::requestExit,
             title = "KoMD",
+            // Without it Windows and Linux show the Java cup in the title bar and taskbar:
+            // the installer icons (.ico/.png) only brand the launcher, not the AWT window.
+            icon = appIcon,
             state = rememberWindowState(width = 1400.dp, height = 900.dp)
         ) {
             KomdMenuBar(commands)
@@ -52,6 +59,12 @@ fun main(args: Array<String>) {
             }
         }
     }
+}
+
+// KoMD.png (1024 px) is also the Linux package icon; Compose scales it to each window icon size.
+private val appIcon: Painter? by lazy {
+    Thread.currentThread().contextClassLoader.getResourceAsStream("KoMD.png")
+        ?.use { BitmapPainter(ImageIO.read(it).toComposeImageBitmap()) }
 }
 
 @OptIn(ExperimentalComposeUiApi::class)

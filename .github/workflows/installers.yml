@@ -15,9 +15,16 @@ name: Installers
 #   MSIX_IDENTITY_NAME, MSIX_PUBLISHER, MSIX_PUBLISHER_DISPLAY_NAME
 on:
   workflow_dispatch:
+    inputs:
+      platform:
+        description: Which installers to build
+        type: choice
+        default: all
+        options: [all, windows, macos, linux]
 
 jobs:
   windows:
+    if: inputs.platform == 'all' || inputs.platform == 'windows'
     name: Windows (msi + msix)
     runs-on: windows-latest
     timeout-minutes: 40
@@ -48,6 +55,7 @@ jobs:
           if-no-files-found: error
 
   macos:
+    if: inputs.platform == 'all' || inputs.platform == 'macos'
     name: macOS (dmg, signed + notarized)
     runs-on: macos-latest
     timeout-minutes: 60
@@ -148,6 +156,7 @@ jobs:
           if-no-files-found: error
 
   linux:
+    if: inputs.platform == 'all' || inputs.platform == 'linux'
     name: Linux (deb)
     runs-on: ubuntu-latest
     timeout-minutes: 40
