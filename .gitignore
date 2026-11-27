@@ -1,0 +1,12 @@
+.idea/
+.kotlin/
+.gradle/
+**/build/
+local.properties
+.DS_Store
+iosApp/iosApp.xcodeproj/project.xcworkspace/xcuserdata/
+iosApp/iosApp.xcodeproj/xcuserdata/
+# Installers copied by :desktopApp:copyInstallersToLauncher (tens of MB each, not versioned)
+installer/*.dmg
+installer/*.msi
+installer/*.deb

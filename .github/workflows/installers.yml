@@ -1,0 +1,167 @@
+name: Installers
+
+# Runs only when started by hand from the Actions tab (Run workflow): never on push or PR.
+#
+# Secrets (Settings > Secrets and variables > Actions > Secrets). Without them the job still
+# runs and produces an unsigned .dmg, as before.
+#   MACOS_CERTIFICATE_P12        base64 of the "Developer ID Application" certificate + key (.p12)
+#   MACOS_CERTIFICATE_PASSWORD   password chosen when exporting the .p12
+#   MACOS_SIGNING_IDENTITY       certificate name without the prefix, e.g. "Giuseppe Sorce (AB12CD34EF)"
+#   NOTARIZATION_APPLE_ID        Apple ID e-mail of the developer account
+#   NOTARIZATION_PASSWORD        app-specific password from account.apple.com
+#   NOTARIZATION_TEAM_ID         10-character Team ID
+# Variables (same page > Variables tab), from Partner Center > KoMD > Product identity.
+# Without them the MSIX step is skipped and only the .msi is built.
+#   MSIX_IDENTITY_NAME, MSIX_PUBLISHER, MSIX_PUBLISHER_DISPLAY_NAME
+on:
+  workflow_dispatch:
+
+jobs:
+  windows:
+    name: Windows (msi + msix)
+    runs-on: windows-latest
+    timeout-minutes: 40
+    env:
+      MSIX_IDENTITY_NAME: ${{ vars.MSIX_IDENTITY_NAME }}
+      MSIX_PUBLISHER: ${{ vars.MSIX_PUBLISHER }}
+      MSIX_PUBLISHER_DISPLAY_NAME: ${{ vars.MSIX_PUBLISHER_DISPLAY_NAME }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v5
+      - name: Build .msi and the app image
+        shell: bash
+        run: ./gradlew :desktopApp:packageMsi :desktopApp:createDistributable --stacktrace
+      - name: Build .msix for the Microsoft Store
+        if: env.MSIX_IDENTITY_NAME != ''
+        shell: pwsh
+        run: ./desktopApp/msix/pack-msix.ps1
+      - uses: actions/upload-artifact@v6
+        with:
+          name: KoMD-windows
+          path: |
+            installer/*.msi
+            installer/*.msix
+          if-no-files-found: error
+
+  macos:
+    name: macOS (dmg, signed + notarized)
+    runs-on: macos-latest
+    timeout-minutes: 60
+    env:
+      MACOS_CERTIFICATE_P12: ${{ secrets.MACOS_CERTIFICATE_P12 }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v5
+      - name: Import signing certificate into a temporary keychain
+        if: env.MACOS_CERTIFICATE_P12 != ''
+        env:
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+        run: |
+          KEYCHAIN="$RUNNER_TEMP/signing.keychain-db"
+          KEYCHAIN_PASSWORD="$(uuidgen)"
+          echo "$MACOS_CERTIFICATE_P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security import "$RUNNER_TEMP/cert.p12" -P "$MACOS_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN"
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
+          rm "$RUNNER_TEMP/cert.p12"
+          echo "SIGNING_KEYCHAIN=$KEYCHAIN" >> "$GITHUB_ENV"
+      - name: Build and sign .dmg
+        if: env.MACOS_CERTIFICATE_P12 != ''
+        env:
+          MACOS_SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY }}
+        # Compose signs the .app (hardened runtime + its default JVM entitlements) and the .dmg.
+        run: |
+          # Compose adds the "Developer ID Application: " prefix itself: accept the secret with or
+          # without it, otherwise the lookup becomes "Developer ID Application: Developer ID …".
+          IDENTITY="${MACOS_SIGNING_IDENTITY#Developer ID Application: }"
+          echo "Signing identities in the keychain:"
+          security find-identity -v -p codesigning "$SIGNING_KEYCHAIN"
+          ./gradlew :desktopApp:packageDmg --stacktrace \
+            -Pcompose.desktop.mac.sign=true \
+            -Pcompose.desktop.mac.signing.identity="$IDENTITY" \
+            -Pcompose.desktop.mac.signing.keychain="$SIGNING_KEYCHAIN"
+          # Compose signs the .app inside the image but not the .dmg container itself. Signing the
+          # .dmg too lets Gatekeeper check the download directly (no "no usable signature").
+          codesign --force --timestamp --keychain "$SIGNING_KEYCHAIN" \
+            --sign "Developer ID Application: $IDENTITY" installer/*.dmg
+          codesign --verify -v installer/*.dmg
+      - name: Notarize and staple .dmg
+        if: env.MACOS_CERTIFICATE_P12 != ''
+        env:
+          NOTARIZATION_APPLE_ID: ${{ secrets.NOTARIZATION_APPLE_ID }}
+          NOTARIZATION_PASSWORD: ${{ secrets.NOTARIZATION_PASSWORD }}
+          NOTARIZATION_TEAM_ID: ${{ secrets.NOTARIZATION_TEAM_ID }}
+        # notarytool is called directly (instead of Compose's notarizeDmg) so that Apple's answer
+        # ends up in this log: auth errors, a missing agreement, or the per-file issues of an
+        # "Invalid" submission (notarytool log).
+        run: |
+          set -u
+          DMG=$(ls installer/*.dmg)
+          AUTH=(--apple-id "$NOTARIZATION_APPLE_ID" --team-id "$NOTARIZATION_TEAM_ID" --password "$NOTARIZATION_PASSWORD")
+          set +e
+          xcrun notarytool submit "$DMG" "${AUTH[@]}" --wait --timeout 30m --output-format json > notary.json 2> notary.err
+          CODE=$?
+          set -e
+          echo "notarytool exit code: $CODE"
+          echo "--- stdout"; cat notary.json; echo
+          echo "--- stderr"; cat notary.err
+          ID=$(python3 -c 'import json;print(json.load(open("notary.json")).get("id",""))' 2>/dev/null || true)
+          STATUS=$(python3 -c 'import json;print(json.load(open("notary.json")).get("status",""))' 2>/dev/null || true)
+          if [ -n "$ID" ] && [ "$STATUS" != "Accepted" ]; then
+            echo "--- notarytool log $ID"
+            xcrun notarytool log "$ID" "${AUTH[@]}" || true
+          fi
+          if [ "$STATUS" != "Accepted" ]; then
+            echo "::error::Notarization failed (status: ${STATUS:-none}, exit $CODE). See the output above."
+            exit 1
+          fi
+          xcrun stapler staple "$DMG"
+      - name: Verify signature, notarization ticket and Gatekeeper
+        if: env.MACOS_CERTIFICATE_P12 != ''
+        run: |
+          DMG=$(ls installer/*.dmg)
+          xcrun stapler validate "$DMG"
+          spctl --assess --type open --context context:primary-signature -v "$DMG"
+          spctl --assess --type execute -v desktopApp/build/compose/binaries/main/app/KoMD.app
+          codesign --verify --deep --strict -v desktopApp/build/compose/binaries/main/app/KoMD.app
+      - name: Build unsigned .dmg (no signing secrets)
+        if: env.MACOS_CERTIFICATE_P12 == ''
+        run: ./gradlew :desktopApp:packageDmg --stacktrace
+      - name: Remove temporary keychain
+        if: always() && env.SIGNING_KEYCHAIN != ''
+        run: security delete-keychain "$SIGNING_KEYCHAIN"
+      - uses: actions/upload-artifact@v6
+        with:
+          name: KoMD-macos
+          path: installer/*.dmg
+          if-no-files-found: error
+
+  linux:
+    name: Linux (deb)
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v5
+      - name: Build .deb
+        run: ./gradlew :desktopApp:packageDeb --stacktrace
+      - uses: actions/upload-artifact@v6
+        with:
+          name: KoMD-linux
+          path: installer/*.deb
+          if-no-files-found: error
