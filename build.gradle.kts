@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Giuseppe Sorce
+// SPDX-License-Identifier: GPL-3.0-only
+
 plugins {
     alias(libs.plugins.kotlinMultiplatform) apply false
     alias(libs.plugins.kotlinJvm) apply false

@@ -12,7 +12,8 @@
 <p align="center">
   <a href="https://gisourcestudio.com/komd">Website</a> ·
   <a href="#download">Download</a> ·
-  <a href="https://gisourcestudio.com/komd/privacy-en.html">Privacy</a>
+  <a href="https://gisourcestudio.com/komd/privacy-en.html">Privacy</a> ·
+  <a href="#license">License: GPL-3.0</a>
 </p>
 
 <p align="center">
@@ -146,7 +147,7 @@ The required secrets and variables are documented at the top of the workflow fil
 
 ## Download
 
-KoMD is free. Get the latest installers from the [website](https://gisourcestudio.com/komd):
+KoMD is free and open source (GPL-3.0). Get the latest installers from the [website](https://gisourcestudio.com/komd):
 
 - macOS: [`KoMD-1.0.0.dmg`](https://gisourcestudio.com/komd/KoMD-1.0.0.dmg) (signed and notarized)
 - Windows: [`KoMD-1.0.0.msi`](https://gisourcestudio.com/komd/KoMD-1.0.0.msi)
@@ -158,6 +159,17 @@ KoMD works entirely offline on your files: no account, no analytics, no tracking
 
 ## License
 
-_License to be defined._ <!-- TODO: add the license chosen for KoMD (e.g. GPL-3.0) and a LICENSE file. -->
+KoMD is free and open source software, released under the **GNU General Public License v3.0 only** (`GPL-3.0-only`). See [`LICENSE`](LICENSE).
+
+You can use, study, modify and redistribute the code, as long as derived works are distributed under the same license with their source code. Every source file carries an SPDX header:
+
+```
+// SPDX-FileCopyrightText: 2026 Giuseppe Sorce
+// SPDX-License-Identifier: GPL-3.0-only
+```
+
+### Trademark
+
+The **KoMD name and icon are not covered by the GPL**. They belong to Giuseppe Sorce. Distributed forks must use a different name and icon. See [`TRADEMARK.md`](TRADEMARK.md).
 
 © 2026 Giuseppe Sorce

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Giuseppe Sorce
+// SPDX-License-Identifier: GPL-3.0-only
+
 package komd.shared
 
 /** A heading of the document, for the "Structure" panel. [offset] is where the heading line starts. */
