@@ -598,6 +598,8 @@ private fun AppContent(
         // File
         add(KomdAction(ActionId.NewDocument, ui.newDocument, KomdMenu.File, 0, KomdShortcut(Key.N, "N"), KomdIcons.Plus, run = newDocument))
         add(KomdAction(ActionId.Open, ui.openFile + "…", KomdMenu.File, 0, KomdShortcut(Key.O, "O"), KomdIcons.Folder, run = openFile))
+        // Only forgets the list (Preferences / SharedPreferences / NSUserDefaults): files on disk are untouched.
+        add(KomdAction(ActionId.ClearRecentFiles, ui.clearRecentFiles, KomdMenu.File, 0, icon = KomdIcons.Trash, enabled = recentFiles.isNotEmpty()) { updateRecentFiles { emptyList() } })
         add(KomdAction(ActionId.Close, ui.closeDocument, KomdMenu.File, 1, KomdShortcut(Key.W, "W"), KomdIcons.Close, run = closeCurrent))
         add(KomdAction(ActionId.Save, ui.save, KomdMenu.File, 1, KomdShortcut(Key.S, "S"), KomdIcons.Save, enabled = hasDocument) { saveFile(true) })
         add(KomdAction(ActionId.SaveAs, ui.saveAs, KomdMenu.File, 1, KomdShortcut(Key.S, "S", shift = true), KomdIcons.Save, enabled = hasDocument) { saveFile(false) })
@@ -764,6 +766,8 @@ private fun AppContent(
                                     recentFiles = recentFiles,
                                     openPaths = documents.mapNotNull { it.file?.path }.toSet(),
                                     onOpenRecent = openRecent,
+                                    onRemoveRecent = { entry -> updateRecentFiles { it.withoutRecent(entry.path) } },
+                                    clearRecentAction = actions[ActionId.ClearRecentFiles],
                                 )
                                 SidePanel.Search -> SearchPanel(
                                     searchField = searchField,

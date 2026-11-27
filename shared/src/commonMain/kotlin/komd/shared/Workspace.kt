@@ -3,7 +3,9 @@ package komd.shared
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
@@ -26,6 +28,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.isMetaPressed
+import androidx.compose.ui.input.pointer.isSecondaryPressed
 import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.LayoutCoordinates
@@ -51,6 +54,7 @@ import androidx.compose.ui.text.drawText
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpOffset
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlin.math.roundToInt
@@ -212,13 +216,20 @@ private fun PanelRow(
     detail: String? = null,
     meta: @Composable (() -> Unit)? = null,
     indent: Dp = 0.dp,
+    /** Secondary click (desktop) or long press (touch), with the pointer position inside the row. */
+    onContextMenu: ((Offset) -> Unit)? = null,
     onClick: () -> Unit,
 ) {
     val colors = KomdTheme.colors
+    val contextMenu by rememberUpdatedState(onContextMenu)
+    val lastPress = remember { ContextPress() }
     Row(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(6.dp))
             .background(if (selected) colors.hover else Color.Transparent)
-            .clickable(onClick = onClick)
+            .then(
+                if (onContextMenu != null) Modifier.contextMenuGesture(lastPress, { contextMenu?.invoke(it) }, onClick)
+                else Modifier.clickable(onClick = onClick)
+            )
             .padding(start = 8.dp + indent, end = 8.dp, top = 6.dp, bottom = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -244,6 +255,8 @@ internal fun FilesPanel(
     recentFiles: List<RecentFile>,
     openPaths: Set<String>,
     onOpenRecent: (RecentFile) -> Unit,
+    onRemoveRecent: (RecentFile) -> Unit,
+    clearRecentAction: KomdAction,
 ) {
     val colors = KomdTheme.colors
     val ui = LocalUiStrings.current
@@ -270,17 +283,92 @@ internal fun FilesPanel(
             Spacer(Modifier.height(16.dp))
             PanelLabel(ui.recentFiles)
             recentFiles.forEach { recent ->
-                PanelRow(
-                    KomdIcons.Clock, recent.name,
-                    detail = parentDirectory(recent.path),
-                    meta = if (recent.path in openPaths) {
-                        { Box(Modifier.size(5.dp).clip(RoundedCornerShape(50)).background(colors.string)) }
-                    } else null
-                ) { onOpenRecent(recent) }
+                var menuAt by remember(recent.path) { mutableStateOf<Offset?>(null) }
+                Box {
+                    PanelRow(
+                        KomdIcons.Clock, recent.name,
+                        selected = menuAt != null,
+                        detail = parentDirectory(recent.path),
+                        meta = if (recent.path in openPaths) {
+                            { Box(Modifier.size(5.dp).clip(RoundedCornerShape(50)).background(colors.string)) }
+                        } else null,
+                        onContextMenu = { menuAt = it }
+                    ) { onOpenRecent(recent) }
+                    menuAt?.let { at ->
+                        // Zero-size anchor at the pointer, so the menu opens where the user clicked.
+                        Box(Modifier.offset { IntOffset(at.x.roundToInt(), at.y.roundToInt()) }.size(0.dp)) {
+                            RecentFileMenu(
+                                onDismiss = { menuAt = null },
+                                onRemove = { menuAt = null; onRemoveRecent(recent) },
+                                clearAction = clearRecentAction,
+                            )
+                        }
+                    }
+                }
             }
         }
     }
 }
+
+/**
+ * Context menu of a recent file. Both items only edit the recents list in the platform preferences:
+ * the file itself is never touched on disk.
+ */
+@Composable
+private fun RecentFileMenu(onDismiss: () -> Unit, onRemove: () -> Unit, clearAction: KomdAction) {
+    val colors = KomdTheme.colors
+    val ui = LocalUiStrings.current
+    DropdownMenu(
+        expanded = true,
+        onDismissRequest = onDismiss,
+        containerColor = colors.background,
+        modifier = Modifier.width(220.dp).border(1.dp, colors.divider, RoundedCornerShape(10.dp))
+    ) {
+        ContextMenuItem(KomdIcons.Close, ui.removeFromRecent, onClick = onRemove)
+        Box(Modifier.padding(vertical = 4.dp).fillMaxWidth().height(1.dp).background(colors.divider))
+        ContextMenuItem(clearAction.icon, clearAction.label, enabled = clearAction.enabled) { onDismiss(); clearAction.run() }
+    }
+}
+
+@Composable
+private fun ContextMenuItem(icon: androidx.compose.ui.graphics.vector.ImageVector?, label: String, enabled: Boolean = true, onClick: () -> Unit) {
+    val colors = KomdTheme.colors
+    val alpha = if (enabled) 1f else 0.4f
+    Row(
+        Modifier.padding(horizontal = 6.dp).fillMaxWidth().clip(RoundedCornerShape(6.dp))
+            .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+            .padding(horizontal = 8.dp, vertical = 7.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        icon?.let { KomdIcon(it, colors.secondary.copy(alpha = alpha), size = 15.dp) }
+        Text(label, color = colors.foreground.copy(alpha = alpha), fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+/**
+ * Click + context menu: a secondary-button press (right click / two-finger tap on desktop) or a
+ * long press (touch) calls [onContextMenu] with the pointer position; a primary click calls [onClick].
+ */
+@OptIn(ExperimentalFoundationApi::class)
+private fun Modifier.contextMenuGesture(press: ContextPress, onContextMenu: (Offset) -> Unit, onClick: () -> Unit): Modifier =
+    pointerInput(press) {
+        awaitPointerEventScope {
+            while (true) {
+                val event = awaitPointerEvent(PointerEventPass.Initial)
+                if (event.type != PointerEventType.Press) continue
+                val position = event.changes.first().position
+                press.position = position
+                if (event.buttons.isSecondaryPressed) {
+                    event.changes.forEach { it.consume() }
+                    onContextMenu(position)
+                }
+            }
+        }
+    }.combinedClickable(onLongClick = { onContextMenu(press.position) }, onClick = onClick)
+
+/** Last press position of a row: long press has no position of its own, so it reuses this one. */
+private class ContextPress(var position: Offset = Offset.Zero)
 
 @Composable
 internal fun SearchPanel(
