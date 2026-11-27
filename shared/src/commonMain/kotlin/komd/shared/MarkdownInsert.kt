@@ -36,6 +36,48 @@ internal fun insertSnippet(text: String, selection: TextRange, snippet: String):
     return InsertResult(before + inserted + after, TextRange(caret))
 }
 
+/** Markup inserted by the "BR" toolbar button: an HTML line break, the only way to add blank space in Markdown. */
+internal const val LINE_BREAK_HTML = "<br>"
+
+/** Markup inserted by the horizontal-line button (CommonMark thematic break). */
+internal const val HORIZONTAL_RULE_MARKDOWN = "---"
+
+/**
+ * Inserts [LINE_BREAK_HTML] at the caret as a paragraph of its own, so it renders as one empty line in
+ * preview, HTML and PDF instead of a trailing break inside the previous paragraph, which browsers ignore.
+ * Repeated presses stack, one empty line each.
+ */
+internal fun insertLineBreak(text: String, selection: TextRange): InsertResult =
+    insertStandaloneBlock(text, selection, LINE_BREAK_HTML)
+
+/**
+ * Inserts [HORIZONTAL_RULE_MARKDOWN] as a block of its own. The blank line before matters: `---` right
+ * under a text line would turn that line into a setext heading instead of drawing a line.
+ */
+internal fun insertHorizontalRule(text: String, selection: TextRange): InsertResult =
+    insertStandaloneBlock(text, selection, HORIZONTAL_RULE_MARKDOWN)
+
+/** Puts [markup] at the caret with a blank line before and after (none added where one exists); replaces a selection. */
+private fun insertStandaloneBlock(text: String, selection: TextRange, markup: String): InsertResult {
+    val start = selection.min.coerceIn(0, text.length)
+    val end = selection.max.coerceIn(start, text.length)
+    val before = text.substring(0, start)
+    val after = text.substring(end)
+    val prefix = when {
+        before.isEmpty() || before.endsWith("\n\n") -> ""
+        before.endsWith("\n") -> "\n"
+        else -> "\n\n"
+    }
+    val suffix = when {
+        after.startsWith("\n\n") -> ""
+        after.startsWith("\n") -> "\n"
+        else -> "\n\n"
+    }
+    // Caret past the blank line that follows the block: ready to type, or to press the button again.
+    val caret = start + prefix.length + markup.length + 2
+    return InsertResult(before + prefix + markup + suffix + after, TextRange(caret))
+}
+
 internal fun alignedImageHtml(alt: String, source: String, alignment: ImageAlignment): String {
     val imageSource = if (source.startsWith("/")) fileUri(source) else source
     val margins = when (alignment) {

@@ -30,7 +30,7 @@ internal enum class ActionId {
     // Format
     H1, H2, H3, Bold, Italic, Strikethrough, InlineCode, Link,
     BulletList, NumberedList, TaskList, Quote,
-    InsertTable, InsertImage, InsertCodeBlock, InsertCustomLink,
+    InsertTable, InsertImage, InsertCodeBlock, InsertLineBreak, InsertHorizontalRule, InsertCustomLink,
     // View
     CommandPalette, ToggleSidebar, ShowFiles, ShowOutline, ShowExport,
     ViewEditor, ViewSplit, ViewPreview, ToggleSyncScroll,

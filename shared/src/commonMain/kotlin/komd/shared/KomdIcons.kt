@@ -32,6 +32,7 @@ internal object KomdIcons {
     val Link = icon("M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1", "M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1")
     val Image = icon(rect(3f, 4f, 18f, 16f, 2f), circle(9f, 10f, 2f), "m21 16-5-5-9 9")
     val Code = icon("m8 8-4 4 4 4M16 8l4 4-4 4")
+    val HorizontalRule = icon("M4 12h16", "M4 7h4M16 7h4M4 17h4M16 17h4")
     val CodeBlock = icon(rect(3f, 4f, 18f, 16f, 2f), "m10 10-2 2 2 2M14 10l2 2-2 2")
     val Gear = icon(
         circle(12f, 12f, 3f),

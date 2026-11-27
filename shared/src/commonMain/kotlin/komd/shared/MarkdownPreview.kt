@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -49,6 +50,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
@@ -117,6 +119,8 @@ private val headingPattern = Regex("""^(#{1,6})[ \t]+(.+)$""")
 private val bulletPattern = Regex("""^[-*+][ \t]+(.+)$""")
 private val taskPattern = Regex("""^\[([ xX])\]\s*(.*)$""")
 private val orderedPattern = Regex("""^(\d+)\.[ \t]+(.+)$""")
+/** `<hr>` alone on a line: drawn like `---` instead of being dropped as empty inline HTML. */
+private val htmlRulePattern = Regex("""^<hr\b[^>]*>$""", RegexOption.IGNORE_CASE)
 private val thematicPattern = Regex("""^(?:(?:\*[ \t]*){3,}|(?:-[ \t]*){3,}|(?:_[ \t]*){3,})$""")
 
 /** Folder of the previewed document: relative image sources are resolved against it. */
@@ -212,13 +216,20 @@ private fun MarkdownBlock(block: MdBlock, imageUnsupported: String, base: Int = 
                 base = base
             )
         }
-        is MdBlock.Paragraph -> RichText(
-            block.inlines,
-            bodyStyle(colors),
-            colors.foreground,
-            Modifier.fillMaxWidth().padding(bottom = 14.dp),
-            base = base
-        )
+        is MdBlock.Paragraph -> {
+            val breaks = lineBreakOnlyCount(block.inlines)
+            if (breaks > 0) {
+                // A paragraph made only of <br>: one empty line per break, like the HTML / PDF export.
+                val lineHeight = with(LocalDensity.current) { bodyStyle(colors).lineHeight.toDp() }
+                Spacer(Modifier.fillMaxWidth().height(lineHeight * breaks + 14.dp))
+            } else RichText(
+                block.inlines,
+                bodyStyle(colors),
+                colors.foreground,
+                Modifier.fillMaxWidth().padding(bottom = 14.dp),
+                base = base
+            )
+        }
         is MdBlock.Quote -> {
             val bar = colors.accent
             Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min).padding(top = 4.dp, bottom = 16.dp)) {
@@ -441,6 +452,13 @@ private fun highlightCode(code: String, palette: CodePalette) = buildAnnotatedSt
             }
         }
     }
+}
+
+/** Number of `<br>` in a paragraph that holds nothing else (spaces aside), 0 otherwise. */
+internal fun lineBreakOnlyCount(inlines: List<MdInline>): Int {
+    if (inlines.isEmpty() || inlines.any { it !is MdInline.Text }) return 0
+    val text = inlines.joinToString("") { (it as MdInline.Text).value }
+    return if (text.isBlank()) text.count { it == '\n' } else 0
 }
 
 private fun bodyStyle(colors: KomdColors) = TextStyle(
@@ -746,7 +764,7 @@ internal fun parseMarkdown(markdown: String, lineOffset: Int = 0): List<MdBlock>
             blocks += MdBlock.Code(code.joinToString("\n"))
             continue
         }
-        if (thematicPattern.matches(trimmed)) {
+        if (thematicPattern.matches(trimmed) || htmlRulePattern.matches(trimmed)) {
             blocks += MdBlock.Rule
             index++
             continue
