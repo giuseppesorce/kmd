@@ -21,7 +21,7 @@ import androidx.compose.ui.input.key.type
  */
 internal enum class ActionId {
     // File
-    NewDocument, Open, Save, SaveAs, Close, ExportHtml, ExportPdf, Settings,
+    NewDocument, Open, ClearRecentFiles, Save, SaveAs, Close, ExportHtml, ExportPdf, Settings,
     // Edit
     Find,
     // Format
